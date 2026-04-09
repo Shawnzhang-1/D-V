@@ -571,7 +571,7 @@ function App() {
               数据可视化应用 - 支持 CSV 和 Excel 文件
             </p>
             <p className="text-sm text-gray-400">
-              Built with React & Recharts
+              Built with Shawnzhang
             </p>
           </div>
         </div>
