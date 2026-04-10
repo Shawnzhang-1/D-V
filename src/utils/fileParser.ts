@@ -17,6 +17,11 @@ export interface ParseOptions {
   maxRows?: number;
 }
 
+export interface PreviewData {
+  rows: any[][];
+  totalRows: number;
+}
+
 const DEFAULT_MAX_ROWS = 100000;
 
 const parseCache = new Map<string, ParsedData>();
@@ -30,6 +35,96 @@ export class FileParseError extends Error {
     super(message);
     this.name = 'FileParseError';
   }
+}
+
+function sanitizeHeader(header: string): string {
+  if (!header || String(header).trim() === '') {
+    return '';
+  }
+  
+  let sanitized = String(header).trim();
+  
+  sanitized = sanitized.replace(/[\r\n\t]+/g, ' ');
+  
+  sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
+  
+  sanitized = sanitized.trim();
+  
+  sanitized = sanitized.replace(/[\\/:*?"<>|]/g, '_');
+  
+  sanitized = sanitized.replace(/_{2,}/g, '_');
+  
+  if (sanitized.length > 100) {
+    sanitized = sanitized.substring(0, 100);
+  }
+  
+  return sanitized || '未命名列';
+}
+
+export function previewFile(
+  file: File,
+  previewRows: number = 20
+): Promise<PreviewData> {
+  return new Promise((resolve, reject) => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (extension === 'csv') {
+      const rows: any[][] = [];
+      let rowIndex = 0;
+      
+      Papa.parse(file as any, {
+        header: false,
+        skipEmptyLines: true,
+        preview: previewRows,
+        chunk: (results) => {
+          const data = results.data as any[][];
+          for (const row of data) {
+            if (rowIndex < previewRows) {
+              rows.push(row);
+              rowIndex++;
+            }
+          }
+        },
+        complete: () => {
+          resolve({ rows, totalRows: rows.length });
+        },
+        error: (error: Error) => {
+          reject(new FileParseError(`预览失败: ${error.message}`, error));
+        },
+      });
+    } else if (extension === 'xlsx' || extension === 'xls') {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          if (!data) {
+            throw new FileParseError('无法读取文件内容');
+          }
+          
+          const workbook = XLSX.read(data, { type: 'array' });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+            header: 1,
+            defval: null,
+            raw: false,
+          }) as any[][];
+          
+          resolve({ 
+            rows: jsonData.slice(0, previewRows), 
+            totalRows: jsonData.length 
+          });
+        } catch (error) {
+          reject(new FileParseError('预览失败', error instanceof Error ? error : undefined));
+        }
+      };
+      
+      reader.onerror = () => reject(new FileParseError('文件读取失败'));
+      reader.readAsArrayBuffer(file);
+    } else {
+      reject(new FileParseError(`不支持的文件格式: ${extension}`));
+    }
+  });
 }
 
 export function parseCSV(
@@ -65,7 +160,7 @@ export function parseCSV(
       header: false,
       skipEmptyLines: true,
       chunkSize: effectiveChunkSize,
-      transformHeader: (h: string) => h.trim(),
+      transformHeader: (h: string) => sanitizeHeader(h),
       chunk: (results: Papa.ParseResult<unknown>, parser: Papa.Parser) => {
         if (results.errors.length > 0 && results.errors[0].type !== 'Quotes') {
           const errorMessage = results.errors
@@ -80,7 +175,7 @@ export function parseCSV(
         
         for (const row of rows) {
           if (rowIndex === headerRowIndex) {
-            headers = row.map((h) => h !== null && h !== undefined ? String(h).trim() : '');
+            headers = row.map((h) => sanitizeHeader(h !== null && h !== undefined ? String(h) : ''));
           } else if (rowIndex >= dataStartIndex) {
             if (totalDataRows < maxRows) {
               const obj: Record<string, any> = {};
@@ -113,6 +208,7 @@ export function parseCSV(
         }
       },
       complete: () => {
+        headers = deduplicateHeaders(headers);
         const result = {
           headers,
           data: allData,
@@ -132,6 +228,21 @@ export function parseCSV(
     }
 
     Papa.parse(file as any, config as any);
+  });
+}
+
+function deduplicateHeaders(headers: string[]): string[] {
+  const seen = new Map<string, number>();
+  return headers.map((header) => {
+    if (!header) return header;
+    
+    const count = seen.get(header) || 0;
+    seen.set(header, count + 1);
+    
+    if (count > 0) {
+      return `${header}_${count}`;
+    }
+    return header;
   });
 }
 
@@ -206,8 +317,10 @@ export function parseExcel(
         const headerRowIndex = headerRow - 1;
         const dataStartIndex = dataStartRow - 1;
 
-        const headers = (jsonData[headerRowIndex] || []).map((h) =>
-          h !== null && h !== undefined ? String(h).trim() : ''
+        const headers = deduplicateHeaders(
+          (jsonData[headerRowIndex] || []).map((h) =>
+            sanitizeHeader(h !== null && h !== undefined ? String(h) : '')
+          )
         );
 
         const dataRows = jsonData.slice(dataStartIndex);

@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  Settings,
-  Palette,
-  Type,
-  RotateCcw,
-} from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 export type ChartType = 'bar' | 'line' | 'pie' | 'area' | 'scatter' | 'radar' | 'mixed';
 
@@ -35,6 +30,7 @@ export interface ChartConfig {
   showGrid: boolean;
   showDataPoints: boolean;
   lineWidth: number;
+  dataPointSize: number;
   opacity: number;
   seriesConfigs: SeriesConfig[];
 }
@@ -86,6 +82,7 @@ export const DEFAULT_CONFIG: ChartConfig = {
   showGrid: true,
   showDataPoints: true,
   lineWidth: 2,
+  dataPointSize: 4,
   opacity: 0.8,
   seriesConfigs: [],
 };
@@ -127,121 +124,95 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
   };
 
   return (
-    <div className={`card overflow-hidden ${className}`}>
-      <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 shadow-lg shadow-violet-500/25">
-              <Settings className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-800">图表配置</h2>
-              <p className="text-xs text-gray-500">个性化设置</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={resetToDefault}
-            className="btn btn-secondary text-sm"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>重置</span>
-          </button>
-        </div>
+    <div className={`space-y-4 ${className}`}>
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={resetToDefault}
+          className="text-xs text-gray-500 hover:text-violet-600 flex items-center space-x-1"
+        >
+          <RotateCcw className="w-3 h-3" />
+          <span>重置默认</span>
+        </button>
       </div>
 
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">图表类型</label>
-            <select
-              value={config.chartType}
-              onChange={(e) => updateConfig('chartType', e.target.value as ChartType)}
-              className="input select"
-            >
-              {CHART_TYPES.map((type) => (
-                <option key={type.value} value={type.value} style={{ background: '#fff', color: '#333' }}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">图表类型</label>
+          <select
+            value={config.chartType}
+            onChange={(e) => updateConfig('chartType', e.target.value as ChartType)}
+            className="input select text-sm"
+          >
+            {CHART_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
+          </select>
+        </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">
-              <div className="flex items-center space-x-2">
-                <Type className="w-4 h-4" />
-                <span>图表标题</span>
-              </div>
-            </label>
-            <input
-              type="text"
-              value={config.title}
-              onChange={(e) => updateConfig('title', e.target.value)}
-              className="input"
-              placeholder="输入图表标题"
-            />
-          </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">图表标题</label>
+          <input
+            type="text"
+            value={config.title}
+            onChange={(e) => updateConfig('title', e.target.value)}
+            className="input text-sm"
+            placeholder="输入图表标题"
+          />
+        </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">X 轴标签</label>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">X轴标签</label>
             <input
               type="text"
               value={config.xAxisLabel}
               onChange={(e) => updateConfig('xAxisLabel', e.target.value)}
-              className="input"
-              placeholder="X 轴"
+              className="input text-sm"
+              placeholder="X轴"
             />
           </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">Y 轴标签</label>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Y轴标签</label>
             <input
               type="text"
               value={config.yAxisLabel}
               onChange={(e) => updateConfig('yAxisLabel', e.target.value)}
-              className="input"
-              placeholder="Y 轴"
+              className="input text-sm"
+              placeholder="Y轴"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">
-              <div className="flex items-center space-x-2">
-                <Palette className="w-4 h-4" />
-                <span>颜色方案</span>
-              </div>
-            </label>
-            <select
-              value={config.colorScheme.id}
-              onChange={(e) => {
-                const scheme = PRESET_COLOR_SCHEMES.find(s => s.id === e.target.value);
-                if (scheme) updateConfig('colorScheme', scheme);
-              }}
-              className="input select"
-            >
-              {PRESET_COLOR_SCHEMES.map((scheme) => (
-                <option key={scheme.id} value={scheme.id} style={{ background: '#fff', color: '#333' }}>
-                  {scheme.name}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-1 mt-2">
-              {config.colorScheme.colors.map((color, index) => (
-                <div
-                  key={index}
-                  className="w-6 h-6 rounded-lg shadow-lg"
-                  style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}40` }}
-                />
-              ))}
-            </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">颜色方案</label>
+          <select
+            value={config.colorScheme.id}
+            onChange={(e) => {
+              const scheme = PRESET_COLOR_SCHEMES.find(s => s.id === e.target.value);
+              if (scheme) updateConfig('colorScheme', scheme);
+            }}
+            className="input select text-sm"
+          >
+            {PRESET_COLOR_SCHEMES.map((scheme) => (
+              <option key={scheme.id} value={scheme.id}>{scheme.name}</option>
+            ))}
+          </select>
+          <div className="flex gap-1 mt-2">
+            {config.colorScheme.colors.map((color, index) => (
+              <div
+                key={index}
+                className="w-5 h-5 rounded"
+                style={{ backgroundColor: color }}
+              />
+            ))}
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">
-              线条宽度: <span className="text-violet-600 font-semibold">{config.lineWidth}px</span>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              线宽: {config.lineWidth}px
             </label>
             <input
               type="range"
@@ -250,56 +221,65 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
               step="0.5"
               value={config.lineWidth}
               onChange={(e) => updateConfig('lineWidth', parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-500"
+              className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-500"
             />
           </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">
-              透明度: <span className="text-violet-600 font-semibold">{Math.round(config.opacity * 100)}%</span>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              数据点: {config.dataPointSize}px
             </label>
             <input
               type="range"
-              min="0.1"
-              max="1"
-              step="0.1"
-              value={config.opacity}
-              onChange={(e) => updateConfig('opacity', parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-500"
+              min="2"
+              max="10"
+              step="1"
+              value={config.dataPointSize}
+              onChange={(e) => updateConfig('dataPointSize', parseFloat(e.target.value))}
+              className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-500"
             />
           </div>
         </div>
 
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-600 mb-3">显示选项</label>
-          <div className="flex flex-wrap gap-4">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            透明度: {Math.round(config.opacity * 100)}%
+          </label>
+          <input
+            type="range"
+            min="0.1"
+            max="1"
+            step="0.1"
+            value={config.opacity}
+            onChange={(e) => updateConfig('opacity', parseFloat(e.target.value))}
+            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-2">显示选项</label>
+          <div className="space-y-2">
             {[
               { key: 'showLegend', label: '显示图例' },
               { key: 'showGrid', label: '显示网格' },
               { key: 'showDataPoints', label: '显示数据点' },
             ].map((item) => (
-              <label key={item.key} className="flex items-center space-x-3 cursor-pointer group">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={config[item.key as keyof ChartConfig] as boolean}
-                    onChange={(e) => updateConfig(item.key as keyof ChartConfig, e.target.checked)}
-                    className="sr-only"
-                  />
-                  <div className={`w-10 h-6 rounded-full transition-all duration-300 ${config[item.key as keyof ChartConfig] ? 'bg-gradient-to-r from-violet-500 to-purple-500' : 'bg-gray-200'}`}>
-                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-lg transition-all duration-300 ${config[item.key as keyof ChartConfig] ? 'left-5' : 'left-1'}`} />
-                  </div>
-                </div>
-                <span className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors">{item.label}</span>
+              <label key={item.key} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config[item.key as keyof ChartConfig] as boolean}
+                  onChange={(e) => updateConfig(item.key as keyof ChartConfig, e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                />
+                <span className="text-sm text-gray-600">{item.label}</span>
               </label>
             ))}
           </div>
         </div>
 
         {dataKeys.length > 0 && (
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-600 mb-3">列配置（颜色/类型）</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-2">列配置</label>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
               {dataKeys.map((key, index) => {
                 const seriesConfig = config.seriesConfigs.find(s => s.key === key) || {
                   key,
@@ -308,43 +288,34 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
                   visible: true,
                 };
                 return (
-                  <div key={key} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3 hover:bg-violet-50 hover:border-violet-200 transition-all duration-300">
+                  <div key={key} className="p-2 rounded-lg bg-gray-50 border border-gray-200 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700 truncate" title={key}>{key}</span>
-                      <label className="flex items-center space-x-2 cursor-pointer">
+                      <span className="text-xs font-medium text-gray-700 truncate flex-1" title={key}>{key}</span>
+                      <label className="flex items-center space-x-1 cursor-pointer ml-2">
                         <input
                           type="checkbox"
                           checked={seriesConfig.visible}
                           onChange={(e) => updateSeriesConfig(key, { visible: e.target.checked })}
-                          className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                          className="w-3 h-3 rounded border-gray-300 text-violet-600"
                         />
-                        <span className="text-xs text-gray-500">显示</span>
                       </label>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs text-gray-400">颜色</label>
-                        <input
-                          type="color"
-                          value={seriesConfig.color}
-                          onChange={(e) => updateSeriesConfig(key, { color: e.target.value })}
-                          className="w-full h-8 rounded-lg cursor-pointer border border-gray-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-400">类型</label>
-                        <select
-                          value={seriesConfig.type}
-                          onChange={(e) => updateSeriesConfig(key, { type: e.target.value as SeriesType })}
-                          className="w-full px-2 py-1 text-sm bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                        >
-                          {SERIES_TYPES.map((type) => (
-                            <option key={type.value} value={type.value} style={{ background: '#fff', color: '#333' }}>
-                              {type.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="color"
+                        value={seriesConfig.color}
+                        onChange={(e) => updateSeriesConfig(key, { color: e.target.value })}
+                        className="w-6 h-6 rounded cursor-pointer border border-gray-200"
+                      />
+                      <select
+                        value={seriesConfig.type}
+                        onChange={(e) => updateSeriesConfig(key, { type: e.target.value as SeriesType })}
+                        className="flex-1 px-2 py-1 text-xs bg-white border border-gray-200 rounded text-gray-700"
+                      >
+                        {SERIES_TYPES.map((type) => (
+                          <option key={type.value} value={type.value}>{type.label}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 );

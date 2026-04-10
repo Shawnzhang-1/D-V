@@ -6,7 +6,6 @@ import {
   PolarRadiusAxis, Brush, ComposedChart, Label,
 } from 'recharts';
 import { LineChart as LineIcon, BarChart2, ScatterChart as ScatterIcon, PieChart as PieIcon, Maximize2, X, Download, Loader2 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import { createPortal } from 'react-dom';
 import { SeriesConfig, SeriesType } from './ChartConfig';
 
@@ -36,6 +35,7 @@ interface ChartProps {
   showGrid?: boolean;
   showDataPoints?: boolean;
   lineWidth?: number;
+  dataPointSize?: number;
   opacity?: number;
   onChartTypeChange?: (type: ChartType) => void;
   xAxisLabel?: string;
@@ -141,7 +141,7 @@ const ChartLegend = memo<{
 const Chart: React.FC<ChartProps> = ({
   data, xAxisKey, yAxisKeys, title, className = '', chartType: externalChartType = 'line',
   colors = DEFAULT_COLORS, seriesConfigs = [], showGrid = true, showDataPoints = true,
-  lineWidth = 2, opacity = 0.8, onChartTypeChange, xAxisLabel = '', yAxisLabel = '',
+  lineWidth = 2, dataPointSize = 4, opacity = 0.8, onChartTypeChange, xAxisLabel = '', yAxisLabel = '',
 }) => {
   const [internalChartType, setInternalChartType] = useState<ChartType>(externalChartType);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -249,74 +249,122 @@ const Chart: React.FC<ChartProps> = ({
     });
   }, []);
 
-  const handleExportChart = useCallback(async () => {
+  const handleExportChart = useCallback(async (format: 'svg' | 'png' | 'pdf' = 'png') => {
     if (!modalContentRef.current) { setExportStatus('错误：无法找到图表元素'); return; }
     setIsExporting(true);
-    setExportStatus('正在准备导出...');
+    setExportStatus(`正在导出 ${format.toUpperCase()}...`);
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      setExportStatus('正在处理颜色格式...');
+      const chartContainer = modalContentRef.current.querySelector('[class*="recharts-wrapper"]');
+      if (!chartContainer) throw new Error('未找到图表元素');
       
-      const clone = modalContentRef.current.cloneNode(true) as HTMLElement;
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.top = '0';
-      document.body.appendChild(clone);
+      const svgElement = chartContainer.querySelector('svg');
+      if (!svgElement) throw new Error('未找到SVG元素');
       
-      convertOklchToHex(clone);
+      const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
+      const bbox = svgElement.getBoundingClientRect();
+      const width = bbox.width;
+      const height = bbox.height;
+      const scale = 3;
       
-      await new Promise(resolve => setTimeout(resolve, 100));
+      clonedSvg.setAttribute('width', String(width));
+      clonedSvg.setAttribute('height', String(height));
+      clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
       
-      setExportStatus('正在生成图像...');
-      const canvas = await html2canvas(clone, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-        foreignObjectRendering: false,
-        imageTimeout: 15000,
-        removeContainer: true,
-        width: clone.scrollWidth,
-        height: clone.scrollHeight,
-        onclone: (clonedDoc) => {
-          const clonedElement = clonedDoc.body.querySelector('[data-chart-container]') as HTMLElement;
-          if (clonedElement) {
-            const allElements = clonedElement.querySelectorAll('*');
-            allElements.forEach((el) => {
-              const htmlEl = el as HTMLElement;
-              const style = clonedDoc.defaultView?.getComputedStyle(htmlEl);
-              if (style) {
-                if (style.backgroundColor && style.backgroundColor.includes('oklch')) {
-                  htmlEl.style.backgroundColor = '#8b5cf6';
-                }
-                if (style.color && style.color.includes('oklch')) {
-                  htmlEl.style.color = '#333';
-                }
-                if (style.borderColor && style.borderColor.includes('oklch')) {
-                  htmlEl.style.borderColor = 'rgba(0,0,0,0.1)';
-                }
-              }
-            });
-          }
-        },
-      });
+      convertOklchToHex(clonedSvg as unknown as HTMLElement);
       
-      document.body.removeChild(clone);
+      const svgData = new XMLSerializer().serializeToString(clonedSvg);
       
-      if (!canvas || canvas.width === 0 || canvas.height === 0) throw new Error('生成的画布无效');
-      setExportStatus('正在下载...');
-      const fileName = title ? `${title}_chart_${new Date().toISOString().slice(0, 10)}.png` : `chart_${new Date().toISOString().slice(0, 10)}.png`;
-      canvas.toBlob((blob) => {
-        if (!blob) { setExportStatus('错误：生成图像失败'); setIsExporting(false); return; }
+      if (format === 'svg') {
+        const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = url; link.download = fileName;
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        link.href = url;
+        link.download = `${title || 'chart'}.svg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(url);
         setExportStatus('导出成功！');
-        setTimeout(() => { setIsExporting(false); setExportStatus(''); }, 1500);
-      }, 'image/png', 1.0);
+      } else {
+        const canvas = document.createElement('canvas');
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('无法创建Canvas上下文');
+        
+        const img = new Image();
+        img.onload = () => {
+          ctx.scale(scale, scale);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0);
+          
+          if (format === 'png') {
+            canvas.toBlob((blob) => {
+              if (!blob) { setExportStatus('错误：生成图片失败'); setIsExporting(false); return; }
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `${title || 'chart'}.png`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+              setExportStatus('导出成功！');
+              setTimeout(() => { setIsExporting(false); setExportStatus(''); }, 1500);
+            }, 'image/png', 1.0);
+          } else if (format === 'pdf') {
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            const pdfContent = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Contents 4 0 R /Resources << /XObject << /Img0 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 44 >>
+stream
+q ${width} 0 0 ${height} 0 0 cm /Img0 Do Q
+endstream
+endobj
+5 0 obj
+<< /Type /XObject /Subtype /Image /Width ${canvas.width} /Height ${canvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgData.length} >>
+stream
+${imgData}
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000266 00000 n 
+0000000359 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+${500 + imgData.length}
+%%EOF`;
+            const blob = new Blob([pdfContent], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${title || 'chart'}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            setExportStatus('导出成功！');
+            setTimeout(() => { setIsExporting(false); setExportStatus(''); }, 1500);
+          }
+        };
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+      }
     } catch (error) {
       console.error('导出图表失败:', error);
       setExportStatus(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -325,18 +373,19 @@ const Chart: React.FC<ChartProps> = ({
   }, [title, convertOklchToHex]);
 
   const renderMainChart = useCallback((height: number = 400) => {
-    const commonProps = { data: sampledData, margin: { top: 30, right: 30, left: 50, bottom: 50 } };
+    const commonProps = { data: sampledData, margin: { top: 40, right: 40, left: 60, bottom: 60 } };
     const xAxisComponent = (
       <XAxis dataKey={xKey} tick={{ fill: '#666', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} tickLine={{ stroke: '#e5e7eb' }}>
-        {xAxisLabel && <Label value={xAxisLabel} offset={-15} position="insideBottom" fill="#333" fontSize={12} fontWeight={500} />}
+        {xAxisLabel && <Label value={xAxisLabel} offset={-25} position="insideBottom" fill="#333" fontSize={13} fontWeight={600} />}
       </XAxis>
     );
     const yAxisComponent = (
-      <YAxis domain={yAxisDomain} tick={{ fill: '#666', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} tickLine={{ stroke: '#e5e7eb' }}>
-        {yAxisLabel && <Label value={yAxisLabel} angle={-90} offset={-20} position="insideLeft" fill="#333" fontSize={12} fontWeight={500} />}
+      <YAxis domain={['auto', 'auto']} tick={{ fill: '#666', fontSize: 11 }} axisLine={{ stroke: '#e5e7eb' }} tickLine={{ stroke: '#e5e7eb' }} width={50}>
+        {yAxisLabel && <Label value={yAxisLabel} angle={-90} offset={-25} position="insideLeft" fill="#333" fontSize={13} fontWeight={600} style={{ textAnchor: 'middle' }} />}
       </YAxis>
     );
     const brushComponent = <Brush dataKey={xKey} height={30} stroke="#8b5cf6" fill="rgba(139, 92, 246, 0.08)" />;
+    const dotSize = Math.max(2, Math.min(12, dataPointSize));
 
     switch (chartType) {
       case 'line':
@@ -351,7 +400,7 @@ const Chart: React.FC<ChartProps> = ({
                 if (hiddenSeries.includes(index)) return null;
                 const config = getSeriesConfig(key, index);
                 if (!config.visible) return null;
-                return <Line key={key} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: 4 } : false} activeDot={{ r: 6, strokeWidth: 0, fill: config.color }} />;
+                return <Line key={key} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: dotSize } : false} activeDot={{ r: dotSize + 2, strokeWidth: 0, fill: config.color }} />;
               })}
             </LineChart>
           </ResponsiveContainer>
@@ -411,8 +460,8 @@ const Chart: React.FC<ChartProps> = ({
                     name={key}
                     stroke="transparent"
                     strokeWidth={0}
-                    dot={{ fill: config.color, r: 5 }}
-                    activeDot={{ fill: config.color, r: 8, strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ fill: config.color, r: dotSize }}
+                    activeDot={{ fill: config.color, r: dotSize + 3, strokeWidth: 2, stroke: '#fff' }}
                   />
                 );
               })}
@@ -441,12 +490,12 @@ const Chart: React.FC<ChartProps> = ({
                       name={key}
                       stroke="transparent"
                       strokeWidth={0}
-                      dot={{ fill: config.color, r: 5 }}
-                      activeDot={{ fill: config.color, r: 8, strokeWidth: 2, stroke: '#fff' }}
+                      dot={{ fill: config.color, r: dotSize }}
+                      activeDot={{ fill: config.color, r: dotSize + 3, strokeWidth: 2, stroke: '#fff' }}
                     />
                   );
                   case 'area': return <Area key={key} type="monotone" dataKey={key} name={key} fill={config.color} stroke={config.color} fillOpacity={opacity * 0.5} />;
-                  default: return <Line key={key} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: 4 } : false} activeDot={{ r: 6, strokeWidth: 0, fill: config.color }} />;
+                  default: return <Line key={key} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: dotSize } : false} activeDot={{ r: dotSize + 2, strokeWidth: 0, fill: config.color }} />;
                 }
               })}
             </ComposedChart>
@@ -482,7 +531,7 @@ const Chart: React.FC<ChartProps> = ({
         );
       default: return null;
     }
-  }, [sampledData, xKey, yAxisDomain, dataKeys, hiddenSeries, getSeriesConfig, showGrid, showDataPoints, lineWidth, opacity, chartType, xAxisLabel, yAxisLabel, pieData]);
+  }, [sampledData, xKey, yAxisDomain, dataKeys, hiddenSeries, getSeriesConfig, showGrid, showDataPoints, lineWidth, dataPointSize, opacity, chartType, xAxisLabel, yAxisLabel, pieData]);
 
   if (data.length === 0) {
     return (
@@ -528,10 +577,32 @@ const Chart: React.FC<ChartProps> = ({
                 {title && <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#333' }}>{title}</h3>}
                 <span style={{ padding: '4px 12px', background: 'linear-gradient(135deg, #8b5cf6, #a855f7)', color: '#fff', borderRadius: '20px', fontSize: '13px', fontWeight: 500 }}>放大视图</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button onClick={handleExportChart} disabled={isExporting} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px', fontSize: '14px', fontWeight: 500, border: 'none', cursor: isExporting ? 'not-allowed' : 'pointer', transition: 'all 0.3s', background: isExporting ? '#ccc' : 'linear-gradient(135deg, #10b981, #059669)', color: '#fff' }} title="下载高分辨率图表">
-                  {isExporting ? (<><Loader2 style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} /><span>{exportStatus || '导出中...'}</span></>) : (<><Download style={{ width: '16px', height: '16px' }} /><span>下载图表</span></>)}
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                <div className="relative group">
+                  <button disabled={isExporting} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px', fontSize: '14px', fontWeight: 500, border: 'none', cursor: isExporting ? 'not-allowed' : 'pointer', transition: 'all 0.3s', background: isExporting ? '#ccc' : 'linear-gradient(135deg, #10b981, #059669)', color: '#fff' }} title="下载图表">
+                    {isExporting ? (<><Loader2 style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} /><span>{exportStatus || '导出中...'}</span></>) : (<><Download style={{ width: '16px', height: '16px' }} /><span>下载图表</span></>)}
+                  </button>
+                  <div className="absolute right-0 top-full mt-1 py-2 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 min-w-[160px]">
+                    <button
+                      onClick={() => { handleExportChart('svg'); }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-violet-50 hover:text-violet-700 flex items-center space-x-2"
+                    >
+                      <span>SVG 矢量图</span>
+                    </button>
+                    <button
+                      onClick={() => { handleExportChart('png'); }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-violet-50 hover:text-violet-700 flex items-center space-x-2"
+                    >
+                      <span>PNG 图片</span>
+                    </button>
+                    <button
+                      onClick={() => { handleExportChart('pdf'); }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-violet-50 hover:text-violet-700 flex items-center space-x-2"
+                    >
+                      <span>PDF 文档</span>
+                    </button>
+                  </div>
+                </div>
                 <button onClick={() => { setIsModalOpen(false); setIsExporting(false); setExportStatus(''); }} style={{ padding: '10px', borderRadius: '12px', border: 'none', cursor: 'pointer', transition: 'all 0.3s', backgroundColor: 'rgba(0,0,0,0.04)' }} title="关闭"><X style={{ width: '20px', height: '20px', color: '#666' }} /></button>
               </div>
             </div>
