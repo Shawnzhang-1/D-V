@@ -164,7 +164,7 @@ const DataFilter: React.FC<DataFilterProps> = ({
               className="input w-24"
               placeholder="最小值"
             />
-            <span className="text-gray-400">-</span>
+            <span className="text-[#4C566A]">-</span>
             <input
               type="number"
               value={rangeValue[1]}
@@ -207,28 +207,28 @@ const DataFilter: React.FC<DataFilterProps> = ({
   return (
     <div className={`card overflow-hidden ${className}`}>
       <div 
-        className="px-6 py-4 border-b border-gray-100 cursor-pointer flex items-center justify-between"
+        className="px-6 py-4 border-b border-[#D8DEE9] cursor-pointer flex items-center justify-between"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/25">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-[#5E81AC] to-[#81A1C1] shadow-lg shadow-[#5E81AC]/20">
             <Filter className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">数据筛选</h2>
-            <p className="text-xs text-gray-500">{filterSummary}</p>
+            <h2 className="text-lg font-semibold text-[#2E3440]">数据筛选</h2>
+            <p className="text-xs text-[#4C566A]">{filterSummary}</p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
           {groups.length > 0 && (
-            <span className="text-sm text-violet-600 font-medium">
+            <span className="text-sm text-[#5E81AC] font-medium">
               {filteredData.length} / {data.length} 行
             </span>
           )}
           {isExpanded ? (
-            <ChevronUp className="w-5 h-5 text-gray-400" />
+            <ChevronUp className="w-5 h-5 text-[#4C566A]" />
           ) : (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
+            <ChevronDown className="w-5 h-5 text-[#4C566A]" />
           )}
         </div>
       </div>
@@ -237,8 +237,8 @@ const DataFilter: React.FC<DataFilterProps> = ({
         <div className="p-6">
           {groups.length === 0 ? (
             <div className="text-center py-8">
-              <Filter className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 mb-4">暂无筛选条件</p>
+              <Filter className="w-12 h-12 text-[#D8DEE9] mx-auto mb-3" />
+              <p className="text-[#4C566A] mb-4">暂无筛选条件</p>
               <button onClick={addGroup} className="btn btn-primary">
                 <Plus className="w-4 h-4" />
                 <span>添加筛选组</span>
@@ -251,8 +251,8 @@ const DataFilter: React.FC<DataFilterProps> = ({
                   key={group.id} 
                   className={`p-4 rounded-xl border-2 transition-all ${
                     group.enabled 
-                      ? 'border-violet-200 bg-violet-50/50' 
-                      : 'border-gray-200 bg-gray-50'
+                      ? 'border-[#81A1C1] bg-[#ECEFF4]' 
+                      : 'border-[#D8DEE9] bg-[#F5F7FA]'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -261,19 +261,19 @@ const DataFilter: React.FC<DataFilterProps> = ({
                         onClick={() => toggleGroup(group.id)}
                         className={`w-4 h-4 rounded-full border-2 transition-colors ${
                           group.enabled 
-                            ? 'bg-violet-500 border-violet-500' 
-                            : 'border-gray-300'
+                            ? 'bg-[#5E81AC] border-[#5E81AC]' 
+                            : 'border-[#D8DEE9]'
                         }`}
                       />
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-[#3B4252]">
                         筛选组 {groupIndex + 1}
                       </span>
                       <button
                         onClick={() => toggleGroupLogic(group.id)}
                         className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                           group.logic === 'AND'
-                            ? 'bg-violet-100 text-violet-700'
-                            : 'bg-orange-100 text-orange-700'
+                            ? 'bg-[#5E81AC]/20 text-[#5E81AC]'
+                            : 'bg-[#D08770]/20 text-[#D08770]'
                         }`}
                       >
                         {group.logic === 'AND' ? '且 (AND)' : '或 (OR)'}
@@ -281,9 +281,9 @@ const DataFilter: React.FC<DataFilterProps> = ({
                     </div>
                     <button
                       onClick={() => removeGroup(group.id)}
-                      className="p-1 hover:bg-red-100 rounded-lg transition-colors"
+                      className="p-1 hover:bg-[#BF616A]/20 rounded-lg transition-colors"
                     >
-                      <Trash2 className="w-4 h-4 text-red-400" />
+                      <Trash2 className="w-4 h-4 text-[#BF616A]" />
                     </button>
                   </div>
 
@@ -296,15 +296,15 @@ const DataFilter: React.FC<DataFilterProps> = ({
                         <div 
                           key={condition.id}
                           className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${
-                            condition.enabled ? 'bg-white' : 'bg-gray-100'
+                            condition.enabled ? 'bg-white' : 'bg-[#E5E9F0]'
                           }`}
                         >
                           <button
                             onClick={() => toggleCondition(group.id, condition.id)}
                             className={`w-4 h-4 rounded border-2 transition-colors ${
                               condition.enabled 
-                                ? 'bg-violet-500 border-violet-500' 
-                                : 'border-gray-300'
+                                ? 'bg-[#5E81AC] border-[#5E81AC]' 
+                                : 'border-[#D8DEE9]'
                             }`}
                           />
                           
@@ -336,9 +336,9 @@ const DataFilter: React.FC<DataFilterProps> = ({
 
                           <button
                             onClick={() => removeCondition(group.id, condition.id)}
-                            className="p-1 hover:bg-red-100 rounded-lg transition-colors"
+                            className="p-1 hover:bg-[#BF616A]/20 rounded-lg transition-colors"
                           >
-                            <X className="w-4 h-4 text-red-400" />
+                            <X className="w-4 h-4 text-[#BF616A]" />
                           </button>
                         </div>
                       );
@@ -347,7 +347,7 @@ const DataFilter: React.FC<DataFilterProps> = ({
 
                   <button
                     onClick={() => addCondition(group.id)}
-                    className="mt-3 flex items-center space-x-1 text-sm text-violet-600 hover:text-violet-700 transition-colors"
+                    className="mt-3 flex items-center space-x-1 text-sm text-[#5E81AC] hover:text-[#81A1C1] transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                     <span>添加条件</span>
@@ -355,7 +355,7 @@ const DataFilter: React.FC<DataFilterProps> = ({
                 </div>
               ))}
 
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between pt-4 border-t border-[#D8DEE9]">
                 <button onClick={addGroup} className="btn btn-secondary">
                   <Plus className="w-4 h-4" />
                   <span>添加筛选组</span>

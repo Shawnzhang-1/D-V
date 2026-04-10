@@ -33,6 +33,8 @@ export interface ChartConfig {
   dataPointSize: number;
   opacity: number;
   seriesConfigs: SeriesConfig[];
+  enableDualAxis: boolean;
+  dualAxisKeys: string[];
 }
 
 interface ChartConfigPanelProps {
@@ -43,14 +45,14 @@ interface ChartConfigPanelProps {
 }
 
 const PRESET_COLOR_SCHEMES: ColorScheme[] = [
-  { id: 'neon', name: '霓虹', colors: ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b'] },
-  { id: 'ocean', name: '海洋', colors: ['#0EA5E9', '#06B6D4', '#14B8A6', '#10B981', '#22C55E'] },
-  { id: 'sunset', name: '日落', colors: ['#F97316', '#FB923C', '#FBBF24', '#FACC15', '#FDE047'] },
-  { id: 'berry', name: '浆果', colors: ['#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#EDE9FE'] },
-  { id: 'rose', name: '玫瑰', colors: ['#EC4899', '#F472B6', '#F9A8D4', '#FBCFE8', '#FCE7F3'] },
-  { id: 'forest', name: '森林', colors: ['#22C55E', '#4ADE80', '#86EFAC', '#BBF7D0', '#DCFCE7'] },
-  { id: 'warm', name: '暖色', colors: ['#EF4444', '#F97316', '#FBBF24', '#FACC15', '#A3E635'] },
-  { id: 'cool', name: '冷色', colors: ['#6366F1', '#8B5CF6', '#A855F7', '#D946EF', '#EC4899'] },
+  { id: 'nord', name: 'Nord 极光', colors: ['#5E81AC', '#81A1C1', '#88C0D0', '#8FBCBB', '#A3BE8C'] },
+  { id: 'frost', name: '霜雪', colors: ['#88C0D0', '#8FBCBB', '#81A1C1', '#5E81AC', '#B48EAD'] },
+  { id: 'aurora', name: '极光', colors: ['#A3BE8C', '#EBCB8B', '#D08770', '#BF616A', '#B48EAD'] },
+  { id: 'polar', name: '极地', colors: ['#ECEFF4', '#D8DEE9', '#81A1C1', '#5E81AC', '#2E3440'] },
+  { id: 'snow', name: '雪景', colors: ['#ECEFF4', '#E5E9F0', '#D8DEE9', '#88C0D0', '#81A1C1'] },
+  { id: 'winter', name: '冬日', colors: ['#5E81AC', '#81A1C1', '#B48EAD', '#A3BE8C', '#EBCB8B'] },
+  { id: 'ice', name: '冰川', colors: ['#88C0D0', '#8FBCBB', '#81A1C1', '#5E81AC', '#4C566A'] },
+  { id: 'twilight', name: '暮光', colors: ['#B48EAD', '#81A1C1', '#5E81AC', '#D08770', '#EBCB8B'] },
 ];
 
 const CHART_TYPES: { value: ChartType; label: string }[] = [
@@ -73,7 +75,7 @@ const SERIES_TYPES: { value: SeriesType; label: string }[] = [
 export const DEFAULT_CONFIG: ChartConfig = {
   chartType: 'bar',
   colorScheme: PRESET_COLOR_SCHEMES[0],
-  customColors: ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b'],
+  customColors: ['#5E81AC', '#81A1C1', '#88C0D0', '#8FBCBB', '#A3BE8C'],
   useCustomColors: false,
   title: '数据可视化',
   xAxisLabel: 'X轴',
@@ -85,6 +87,8 @@ export const DEFAULT_CONFIG: ChartConfig = {
   dataPointSize: 4,
   opacity: 0.8,
   seriesConfigs: [],
+  enableDualAxis: false,
+  dualAxisKeys: [],
 };
 
 const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
@@ -107,9 +111,11 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
       );
     } else {
       const colors = config.useCustomColors ? config.customColors : config.colorScheme.colors;
+      const keyIndex = dataKeys.indexOf(key);
+      const colorIndex = keyIndex >= 0 ? keyIndex : config.seriesConfigs.length;
       newConfigs = [...config.seriesConfigs, { 
         key, 
-        color: colors[config.seriesConfigs.length % colors.length],
+        color: colors[colorIndex % colors.length],
         type: 'line' as SeriesType,
         visible: true,
         ...updates 
@@ -129,7 +135,7 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
         <button
           type="button"
           onClick={resetToDefault}
-          className="text-xs text-gray-500 hover:text-violet-600 flex items-center space-x-1"
+          className="text-xs text-[#4C566A] hover:text-[#5E81AC] flex items-center space-x-1"
         >
           <RotateCcw className="w-3 h-3" />
           <span>重置默认</span>
@@ -138,7 +144,7 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
 
       <div className="space-y-3">
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">图表类型</label>
+          <label className="block text-xs font-medium text-[#4C566A] mb-1">图表类型</label>
           <select
             value={config.chartType}
             onChange={(e) => updateConfig('chartType', e.target.value as ChartType)}
@@ -151,7 +157,7 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">图表标题</label>
+          <label className="block text-xs font-medium text-[#4C566A] mb-1">图表标题</label>
           <input
             type="text"
             value={config.title}
@@ -163,7 +169,7 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">X轴标签</label>
+            <label className="block text-xs font-medium text-[#4C566A] mb-1">X轴标签</label>
             <input
               type="text"
               value={config.xAxisLabel}
@@ -173,7 +179,7 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Y轴标签</label>
+            <label className="block text-xs font-medium text-[#4C566A] mb-1">Y轴标签</label>
             <input
               type="text"
               value={config.yAxisLabel}
@@ -185,12 +191,22 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">颜色方案</label>
+          <label className="block text-xs font-medium text-[#4C566A] mb-1">颜色方案</label>
           <select
             value={config.colorScheme.id}
             onChange={(e) => {
               const scheme = PRESET_COLOR_SCHEMES.find(s => s.id === e.target.value);
-              if (scheme) updateConfig('colorScheme', scheme);
+              if (scheme) {
+                const updatedSeriesConfigs = config.seriesConfigs.map((s, index) => ({
+                  ...s,
+                  color: scheme.colors[index % scheme.colors.length]
+                }));
+                onConfigChange({ 
+                  ...config, 
+                  colorScheme: scheme,
+                  seriesConfigs: updatedSeriesConfigs
+                });
+              }
             }}
             className="input select text-sm"
           >
@@ -211,7 +227,7 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
+            <label className="block text-xs font-medium text-[#4C566A] mb-1">
               线宽: {config.lineWidth}px
             </label>
             <input
@@ -221,11 +237,11 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
               step="0.5"
               value={config.lineWidth}
               onChange={(e) => updateConfig('lineWidth', parseFloat(e.target.value))}
-              className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-500"
+              className="w-full h-1.5 bg-[#D8DEE9] rounded-lg appearance-none cursor-pointer accent-[#5E81AC]"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
+            <label className="block text-xs font-medium text-[#4C566A] mb-1">
               数据点: {config.dataPointSize}px
             </label>
             <input
@@ -235,13 +251,13 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
               step="1"
               value={config.dataPointSize}
               onChange={(e) => updateConfig('dataPointSize', parseFloat(e.target.value))}
-              className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-500"
+              className="w-full h-1.5 bg-[#D8DEE9] rounded-lg appearance-none cursor-pointer accent-[#5E81AC]"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
+          <label className="block text-xs font-medium text-[#4C566A] mb-1">
             透明度: {Math.round(config.opacity * 100)}%
           </label>
           <input
@@ -251,12 +267,12 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
             step="0.1"
             value={config.opacity}
             onChange={(e) => updateConfig('opacity', parseFloat(e.target.value))}
-            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-500"
+            className="w-full h-1.5 bg-[#D8DEE9] rounded-lg appearance-none cursor-pointer accent-[#5E81AC]"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-2">显示选项</label>
+          <label className="block text-xs font-medium text-[#4C566A] mb-2">显示选项</label>
           <div className="space-y-2">
             {[
               { key: 'showLegend', label: '显示图例' },
@@ -268,35 +284,76 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
                   type="checkbox"
                   checked={config[item.key as keyof ChartConfig] as boolean}
                   onChange={(e) => updateConfig(item.key as keyof ChartConfig, e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                  className="w-4 h-4 rounded border-[#D8DEE9] text-[#5E81AC] focus:ring-[#5E81AC]"
                 />
-                <span className="text-sm text-gray-600">{item.label}</span>
+                <span className="text-sm text-[#3B4252]">{item.label}</span>
               </label>
             ))}
           </div>
         </div>
 
+        <div className="pt-2 border-t border-[#D8DEE9]">
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.enableDualAxis}
+              onChange={(e) => updateConfig('enableDualAxis', e.target.checked)}
+              className="w-4 h-4 rounded border-[#D8DEE9] text-[#5E81AC] focus:ring-[#5E81AC]"
+            />
+            <span className="text-sm font-medium text-[#2E3440]">启用双Y轴</span>
+          </label>
+          <p className="text-xs text-[#4C566A] mt-1 ml-6">适用于数据范围差异较大的多列数据</p>
+          
+          {config.enableDualAxis && dataKeys.length > 1 && (
+            <div className="mt-3 ml-6 p-3 bg-[#E5E9F0] rounded-lg border border-[#D8DEE9]">
+              <label className="block text-xs font-medium text-[#4C566A] mb-2">右侧Y轴数据列</label>
+              <div className="space-y-1 max-h-24 overflow-y-auto">
+                {dataKeys.map((key) => (
+                  <label key={key} className="flex items-center space-x-2 cursor-pointer hover:bg-[#ECEFF4] px-2 py-1 rounded transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={config.dualAxisKeys.includes(key)}
+                      onChange={(e) => {
+                        const newKeys = e.target.checked
+                          ? [...config.dualAxisKeys, key]
+                          : config.dualAxisKeys.filter(k => k !== key);
+                        updateConfig('dualAxisKeys', newKeys);
+                      }}
+                      className="w-3 h-3 rounded border-[#D8DEE9] text-[#88C0D0] focus:ring-[#88C0D0]"
+                    />
+                    <span className="text-xs text-[#3B4252] truncate" title={key}>{key}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-[#4C566A] mt-2">
+                已选择 {config.dualAxisKeys.length} 列显示在右侧Y轴
+              </p>
+            </div>
+          )}
+        </div>
+
         {dataKeys.length > 0 && (
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-2">列配置</label>
+            <label className="block text-xs font-medium text-[#4C566A] mb-2">列配置</label>
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {dataKeys.map((key, index) => {
+                const colors = config.useCustomColors ? config.customColors : config.colorScheme.colors;
                 const seriesConfig = config.seriesConfigs.find(s => s.key === key) || {
                   key,
-                  color: (config.useCustomColors ? config.customColors : config.colorScheme.colors)[index % 5],
+                  color: colors[index % colors.length],
                   type: 'line' as SeriesType,
                   visible: true,
                 };
                 return (
-                  <div key={key} className="p-2 rounded-lg bg-gray-50 border border-gray-200 space-y-2">
+                  <div key={key} className="p-2 rounded-lg bg-[#E5E9F0] border border-[#D8DEE9] space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-700 truncate flex-1" title={key}>{key}</span>
+                      <span className="text-xs font-medium text-[#2E3440] truncate flex-1" title={key}>{key}</span>
                       <label className="flex items-center space-x-1 cursor-pointer ml-2">
                         <input
                           type="checkbox"
                           checked={seriesConfig.visible}
                           onChange={(e) => updateSeriesConfig(key, { visible: e.target.checked })}
-                          className="w-3 h-3 rounded border-gray-300 text-violet-600"
+                          className="w-3 h-3 rounded border-[#D8DEE9] text-[#5E81AC]"
                         />
                       </label>
                     </div>
@@ -305,12 +362,12 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
                         type="color"
                         value={seriesConfig.color}
                         onChange={(e) => updateSeriesConfig(key, { color: e.target.value })}
-                        className="w-6 h-6 rounded cursor-pointer border border-gray-200"
+                        className="w-6 h-6 rounded cursor-pointer border border-[#D8DEE9]"
                       />
                       <select
                         value={seriesConfig.type}
                         onChange={(e) => updateSeriesConfig(key, { type: e.target.value as SeriesType })}
-                        className="flex-1 px-2 py-1 text-xs bg-white border border-gray-200 rounded text-gray-700"
+                        className="flex-1 px-2 py-1 text-xs bg-white border border-[#D8DEE9] rounded text-[#3B4252]"
                       >
                         {SERIES_TYPES.map((type) => (
                           <option key={type.value} value={type.value}>{type.label}</option>

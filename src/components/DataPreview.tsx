@@ -65,15 +65,15 @@ const DataPreview: React.FC<DataPreviewProps> = ({
   const getTypeStyle = (type: string) => {
     switch (type) {
       case 'number':
-        return { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' };
+        return { bg: 'bg-[#88C0D0]/30', text: 'text-[#5E81AC]', border: 'border-[#88C0D0]' };
       case 'string':
-        return { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' };
+        return { bg: 'bg-[#A3BE8C]/30', text: 'text-[#A3BE8C]', border: 'border-[#A3BE8C]' };
       case 'boolean':
-        return { bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-200' };
+        return { bg: 'bg-[#B48EAD]/30', text: 'text-[#B48EAD]', border: 'border-[#B48EAD]' };
       case 'date':
-        return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' };
+        return { bg: 'bg-[#EBCB8B]/30', text: 'text-[#D08770]', border: 'border-[#EBCB8B]' };
       default:
-        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' };
+        return { bg: 'bg-[#D8DEE9]', text: 'text-[#4C566A]', border: 'border-[#D8DEE9]' };
     }
   };
 
@@ -95,18 +95,18 @@ const DataPreview: React.FC<DataPreviewProps> = ({
 
   return (
     <div className={`card overflow-hidden ${className}`}>
-      <div className="px-6 py-4 border-b border-gray-100">
+      <div className="px-6 py-4 border-b border-[#D8DEE9]">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 shadow-lg shadow-emerald-500/25">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-[#A3BE8C] to-[#8FBCBB] shadow-lg shadow-[#A3BE8C]/20">
               <Table className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-800">数据预览</h2>
-              <p className="text-xs text-gray-500">原始数据表格</p>
+              <h2 className="text-lg font-semibold text-[#2E3440]">数据预览</h2>
+              <p className="text-xs text-[#4C566A]">原始数据表格</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2 text-gray-500 text-sm">
+          <div className="flex items-center space-x-2 text-[#4C566A] text-sm">
             <Info className="w-4 h-4" />
             <span>显示前 {previewData.length} 行 / 共 {data.totalCount.toLocaleString()} 行</span>
           </div>
@@ -115,7 +115,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
 
       <div className="p-4">
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-gray-600 mb-3">列类型统计</h3>
+          <h3 className="text-sm font-medium text-[#3B4252] mb-3">列类型统计</h3>
           <div className="flex flex-wrap gap-2">
             {columnStats.map((stat) => {
               const isSelected = selectedColumns.includes(stat.name);
@@ -127,8 +127,8 @@ const DataPreview: React.FC<DataPreviewProps> = ({
                   className={`
                     flex items-center space-x-2 px-3 py-1.5 rounded-xl border transition-all duration-300 text-sm
                     ${isSelected
-                      ? 'border-violet-300 bg-violet-50 text-violet-700 shadow-lg shadow-violet-500/10'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-violet-200 hover:bg-violet-50/50'
+                      ? 'border-[#5E81AC] bg-[#ECEFF4] text-[#5E81AC] shadow-lg shadow-[#5E81AC]/10'
+                      : 'border-[#D8DEE9] bg-white text-[#4C566A] hover:border-[#81A1C1] hover:bg-[#ECEFF4]'
                     }
                   `}
                 >
@@ -142,12 +142,12 @@ const DataPreview: React.FC<DataPreviewProps> = ({
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
+        <div className="rounded-xl border border-[#D8DEE9] overflow-hidden bg-white">
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 sticky left-0 z-10 w-12">
+                <tr className="border-b border-[#D8DEE9]">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-[#4C566A] uppercase tracking-wider bg-[#E5E9F0] sticky left-0 z-10 w-12">
                     #
                   </th>
                   {data.headers.map((header) => (
@@ -155,8 +155,8 @@ const DataPreview: React.FC<DataPreviewProps> = ({
                       key={header}
                       className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                         selectedColumns.includes(header)
-                          ? 'bg-violet-50 text-violet-700'
-                          : 'bg-gray-50 text-gray-500'
+                          ? 'bg-[#ECEFF4] text-[#5E81AC]'
+                          : 'bg-[#E5E9F0] text-[#4C566A]'
                       }`}
                     >
                       {header}
@@ -164,13 +164,13 @@ const DataPreview: React.FC<DataPreviewProps> = ({
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-[#E5E9F0]">
                 {previewData.map((row, rowIndex) => (
                   <tr
                     key={rowIndex}
-                    className={`transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                    className={`transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#F5F7FA]'}`}
                   >
-                    <td className="px-3 py-2 text-xs text-gray-400 font-mono bg-gray-50 sticky left-0">
+                    <td className="px-3 py-2 text-xs text-[#4C566A] font-mono bg-[#E5E9F0] sticky left-0">
                       {rowIndex + 1}
                     </td>
                     {data.headers.map((header) => {
@@ -178,13 +178,13 @@ const DataPreview: React.FC<DataPreviewProps> = ({
                       return (
                         <td
                           key={header}
-                          className={`px-3 py-2 text-xs whitespace-nowrap ${isSelected ? 'bg-violet-50/50' : ''}`}
+                          className={`px-3 py-2 text-xs whitespace-nowrap ${isSelected ? 'bg-[#ECEFF4]/50' : ''}`}
                         >
                           <span
                             className={`block truncate max-w-[150px] ${
                               row[header] === null || row[header] === undefined
-                                ? 'text-gray-300 italic'
-                                : 'text-gray-700'
+                                ? 'text-[#D8DEE9] italic'
+                                : 'text-[#3B4252]'
                             }`}
                             title={formatCellValue(row[header])}
                           >
@@ -201,7 +201,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
         </div>
 
         {data.data.length > maxPreviewRows && (
-          <div className="mt-3 text-center text-xs text-gray-400">
+          <div className="mt-3 text-center text-xs text-[#4C566A]">
             还有 {(data.data.length - maxPreviewRows).toLocaleString()} 行数据未显示
           </div>
         )}

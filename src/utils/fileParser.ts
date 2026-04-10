@@ -43,15 +43,10 @@ function sanitizeHeader(header: string): string {
   }
   
   let sanitized = String(header).trim();
-  
   sanitized = sanitized.replace(/[\r\n\t]+/g, ' ');
-  
   sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
-  
   sanitized = sanitized.trim();
-  
   sanitized = sanitized.replace(/[\\/:*?"<>|]/g, '_');
-  
   sanitized = sanitized.replace(/_{2,}/g, '_');
   
   if (sanitized.length > 100) {
@@ -61,37 +56,101 @@ function sanitizeHeader(header: string): string {
   return sanitized || '未命名列';
 }
 
+function detectEncoding(text: string): string {
+  const chinesePatterns = [
+    /[\u4e00-\u9fa5]/,
+    /[\u3400-\u4dbf]/,
+  ];
+  
+  const hasValidChinese = chinesePatterns.some(pattern => pattern.test(text));
+  if (hasValidChinese) {
+    return 'UTF-8';
+  }
+  
+  const hasReplacementChar = text.includes('\uFFFD');
+  if (hasReplacementChar) {
+    return 'GBK';
+  }
+  
+  return 'UTF-8';
+}
+
+async function detectFileEncoding(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (!text) {
+        resolve('UTF-8');
+        return;
+      }
+      resolve(detectEncoding(text));
+    };
+    reader.onerror = () => resolve('UTF-8');
+    const blob = file.slice(0, Math.min(file.size, 10000));
+    reader.readAsText(blob, 'UTF-8');
+  });
+}
+
+async function tryParseCSVWithEncoding(
+  file: File,
+  encoding: string,
+  previewRows: number
+): Promise<{ rows: any[][]; success: boolean }> {
+  return new Promise((resolve) => {
+    const rows: any[][] = [];
+    let rowIndex = 0;
+    
+    Papa.parse(file as any, {
+      header: false,
+      skipEmptyLines: true,
+      preview: previewRows,
+      encoding: encoding,
+      chunk: (results) => {
+        const data = results.data as any[][];
+        for (const row of data) {
+          if (rowIndex < previewRows) {
+            rows.push(row);
+            rowIndex++;
+          }
+        }
+      },
+      complete: () => {
+        const text = rows.flat().join('');
+        const detectedEncoding = detectEncoding(text);
+        const success = detectedEncoding === 'UTF-8' || encoding === detectedEncoding;
+        resolve({ rows, success });
+      },
+      error: () => {
+        resolve({ rows: [], success: false });
+      },
+    });
+  });
+}
+
 export function previewFile(
   file: File,
   previewRows: number = 20
 ): Promise<PreviewData> {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const extension = file.name.split('.').pop()?.toLowerCase();
     
     if (extension === 'csv') {
-      const rows: any[][] = [];
-      let rowIndex = 0;
-      
-      Papa.parse(file as any, {
-        header: false,
-        skipEmptyLines: true,
-        preview: previewRows,
-        chunk: (results) => {
-          const data = results.data as any[][];
-          for (const row of data) {
-            if (rowIndex < previewRows) {
-              rows.push(row);
-              rowIndex++;
-            }
-          }
-        },
-        complete: () => {
-          resolve({ rows, totalRows: rows.length });
-        },
-        error: (error: Error) => {
-          reject(new FileParseError(`预览失败: ${error.message}`, error));
-        },
-      });
+      try {
+        let result = await tryParseCSVWithEncoding(file, 'UTF-8', previewRows);
+        
+        if (!result.success || result.rows.length === 0) {
+          result = await tryParseCSVWithEncoding(file, 'GBK', previewRows);
+        }
+        
+        if (!result.success || result.rows.length === 0) {
+          result = await tryParseCSVWithEncoding(file, 'GB2312', previewRows);
+        }
+        
+        resolve({ rows: result.rows, totalRows: result.rows.length });
+      } catch (error) {
+        reject(new FileParseError(`预览失败: ${error instanceof Error ? error.message : '未知错误'}`, error instanceof Error ? error : undefined));
+      }
     } else if (extension === 'xlsx' || extension === 'xls') {
       const reader = new FileReader();
       
@@ -102,8 +161,30 @@ export function previewFile(
             throw new FileParseError('无法读取文件内容');
           }
           
-          const workbook = XLSX.read(data, { type: 'array' });
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const workbook = XLSX.read(data, { 
+            type: 'array',
+            codepage: 65001,
+          });
+          
+          if (!workbook) {
+            throw new FileParseError('Excel 文件解析失败：无法创建工作簿');
+          }
+          
+          if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+            throw new FileParseError('Excel 文件中没有找到任何工作表');
+          }
+          
+          if (!workbook.Sheets) {
+            throw new FileParseError('Excel 文件结构异常：无法访问工作表数据');
+          }
+          
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          if (!worksheet) {
+            throw new FileParseError('无法读取工作表');
+          }
+          
           const jsonData = XLSX.utils.sheet_to_json(worksheet, {
             header: 1,
             defval: null,
@@ -127,26 +208,20 @@ export function previewFile(
   });
 }
 
-export function parseCSV(
+function parseCSVWithEncoding(
   file: File,
-  options: ParseOptions = {}
+  encoding: string,
+  options: ParseOptions
 ): Promise<ParsedData> {
-  const cacheKey = getCacheKey(file, options);
-  const cached = parseCache.get(cacheKey);
-  if (cached) {
-    return Promise.resolve(cached);
-  }
-
+  const { 
+    chunkSize, 
+    onProgress, 
+    headerRow = 1, 
+    dataStartRow = 2,
+    maxRows = DEFAULT_MAX_ROWS,
+  } = options;
+  
   return new Promise((resolve, reject) => {
-    const { 
-      encoding, 
-      chunkSize, 
-      onProgress, 
-      headerRow = 1, 
-      dataStartRow = 2,
-      maxRows = DEFAULT_MAX_ROWS,
-    } = options;
-    
     const allData: any[] = [];
     let headers: string[] = [];
     let rowIndex = 0;
@@ -160,6 +235,7 @@ export function parseCSV(
       header: false,
       skipEmptyLines: true,
       chunkSize: effectiveChunkSize,
+      encoding: encoding,
       transformHeader: (h: string) => sanitizeHeader(h),
       chunk: (results: Papa.ParseResult<unknown>, parser: Papa.Parser) => {
         if (results.errors.length > 0 && results.errors[0].type !== 'Quotes') {
@@ -214,7 +290,6 @@ export function parseCSV(
           data: allData,
           totalCount: totalDataRows,
         };
-        parseCache.set(cacheKey, result);
         onProgress?.(100);
         resolve(result);
       },
@@ -222,10 +297,6 @@ export function parseCSV(
         reject(new FileParseError(`CSV 解析失败: ${error.message}`, error));
       },
     };
-
-    if (encoding) {
-      config.encoding = encoding;
-    }
 
     Papa.parse(file as any, config as any);
   });
@@ -243,6 +314,47 @@ function deduplicateHeaders(headers: string[]): string[] {
       return `${header}_${count}`;
     }
     return header;
+  });
+}
+
+export function parseCSV(
+  file: File,
+  options: ParseOptions = {}
+): Promise<ParsedData> {
+  const cacheKey = getCacheKey(file, options);
+  const cached = parseCache.get(cacheKey);
+  if (cached) {
+    return Promise.resolve(cached);
+  }
+
+  return new Promise(async (resolve, reject) => {
+    const { encoding } = options;
+    
+    try {
+      let detectedEncoding = encoding;
+      
+      if (!detectedEncoding) {
+        detectedEncoding = await detectFileEncoding(file);
+      }
+      
+      let result = await parseCSVWithEncoding(file, detectedEncoding, options);
+      
+      const sampleText = result.data.slice(0, 10).map(row => Object.values(row).join('')).join('');
+      const hasReplacementChar = sampleText.includes('\uFFFD');
+      
+      if (hasReplacementChar && !encoding) {
+        result = await parseCSVWithEncoding(file, 'GBK', options);
+      }
+      
+      parseCache.set(cacheKey, result);
+      resolve(result);
+    } catch (error) {
+      if (error instanceof FileParseError) {
+        reject(error);
+      } else {
+        reject(new FileParseError(`CSV 解析失败: ${error instanceof Error ? error.message : '未知错误'}`, error instanceof Error ? error : undefined));
+      }
+    }
   });
 }
 
@@ -280,19 +392,37 @@ export function parseExcel(
         
         const workbook = XLSX.read(data, { 
           type: 'array',
-          cellDates: false,
+          cellDates: true,
+          cellNF: true,
           cellStyles: false,
-          bookSheets: true,
+          codepage: 65001,
+          raw: false,
         });
 
         if (onProgress) onProgress(35);
 
-        const targetSheetName = sheetName || workbook.SheetNames[0];
+        if (!workbook) {
+          throw new FileParseError('Excel 文件解析失败：无法创建工作簿');
+        }
+
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+          throw new FileParseError('Excel 文件中没有找到任何工作表');
+        }
+
+        if (!workbook.Sheets) {
+          throw new FileParseError('Excel 文件结构异常：无法访问工作表数据');
+        }
+
+        let targetSheetName = sheetName || workbook.SheetNames[0];
+        
+        if (!workbook.Sheets[targetSheetName]) {
+          targetSheetName = workbook.SheetNames[0];
+        }
         
         const worksheet = workbook.Sheets[targetSheetName];
         if (!worksheet) {
           throw new FileParseError(
-            `工作表 "${targetSheetName}" 不存在`
+            `无法读取工作表，可用的工作表: ${workbook.SheetNames.join(', ')}`
           );
         }
 
@@ -303,6 +433,7 @@ export function parseExcel(
           defval: null,
           raw: false,
           blankrows: false,
+          dateNF: 'yyyy-mm-dd',
         }) as any[][];
 
         if (jsonData.length === 0) {

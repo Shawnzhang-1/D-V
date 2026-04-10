@@ -118,9 +118,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const getStatusIcon = () => {
     switch (uploadState.status) {
       case 'success':
-        return <CheckCircle className="w-5 h-5 text-emerald-500" />;
+        return <CheckCircle className="w-5 h-5 text-[#A3BE8C]" />;
       case 'error':
-        return <AlertCircle className="w-5 h-5 text-red-500" />;
+        return <AlertCircle className="w-5 h-5 text-[#BF616A]" />;
       default:
         return null;
     }
@@ -140,8 +140,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
         className={`
           relative rounded-2xl border-2 border-dashed transition-all duration-300 cursor-pointer
           ${isDragging 
-            ? 'border-violet-400 bg-violet-50 scale-[1.02]' 
-            : 'border-gray-200 bg-gray-50 hover:border-violet-300 hover:bg-violet-50/50'
+            ? 'border-[#5E81AC] bg-[#ECEFF4] scale-[1.02]' 
+            : 'border-[#D8DEE9] bg-[#F5F7FA] hover:border-[#81A1C1] hover:bg-[#ECEFF4]'
           }
         `}
         onDragEnter={handleDragEnter}
@@ -151,7 +151,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         onClick={() => fileInputRef.current?.click()}
       >
         {isDragging && (
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 animate-pulse" />
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#5E81AC]/10 to-[#81A1C1]/10 animate-pulse" />
         )}
         
         {uploadState.status === 'idle' ? (
@@ -159,43 +159,43 @@ const FileUpload: React.FC<FileUploadProps> = ({
             <div className={`
               p-4 rounded-2xl mb-4 transition-all duration-300
               ${isDragging 
-                ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/25' 
-                : 'bg-gradient-to-br from-violet-100 to-fuchsia-100'
+                ? 'bg-gradient-to-br from-[#5E81AC] to-[#81A1C1] shadow-lg shadow-[#5E81AC]/25' 
+                : 'bg-[#E5E9F0]'
               }
             `}>
-              <Upload className={`w-8 h-8 transition-colors ${isDragging ? 'text-white' : 'text-violet-500'}`} />
+              <Upload className={`w-8 h-8 transition-colors ${isDragging ? 'text-white' : 'text-[#5E81AC]'}`} />
             </div>
-            <p className="text-gray-700 font-medium mb-1">
+            <p className="text-[#3B4252] font-medium mb-1">
               {isDragging ? '释放以上传文件' : '拖拽文件到此处'}
             </p>
-            <p className="text-gray-400 text-sm mb-4">或点击选择文件</p>
+            <p className="text-[#4C566A] text-sm mb-4">或点击选择文件</p>
             <button
               type="button"
               className="btn btn-primary"
             >
               选择文件
             </button>
-            <p className="text-gray-400 text-xs mt-3">
+            <p className="text-[#4C566A] text-xs mt-3">
               支持 CSV、Excel 格式，最大 100MB
             </p>
           </div>
         ) : (
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg shadow-cyan-500/25">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-[#81A1C1] to-[#88C0D0] shadow-lg shadow-[#81A1C1]/20">
                 <FileSpreadsheet className="w-6 h-6 text-white" />
               </div>
               
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-800 truncate max-w-xs">
+                <p className="text-sm font-medium text-[#2E3440] truncate max-w-xs">
                   {uploadState.fileName}
                 </p>
                 <div className="flex items-center space-x-2 mt-1">
                   {getStatusIcon()}
                   <p className={`text-sm ${
-                    uploadState.status === 'success' ? 'text-emerald-600' :
-                    uploadState.status === 'error' ? 'text-red-600' :
-                    'text-cyan-600'
+                    uploadState.status === 'success' ? 'text-[#A3BE8C]' :
+                    uploadState.status === 'error' ? 'text-[#BF616A]' :
+                    'text-[#81A1C1]'
                   }`}>
                     {uploadState.message}
                   </p>
@@ -209,10 +209,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 e.stopPropagation();
                 handleReset();
               }}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors duration-200"
+              className="p-2 hover:bg-[#E5E9F0] rounded-xl transition-colors duration-200"
               title="重新上传"
             >
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="w-5 h-5 text-[#4C566A]" />
             </button>
           </div>
         )}
@@ -227,12 +227,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
       />
 
       {uploadState.status === 'error' && (
-        <div className="mt-3 p-4 rounded-xl bg-red-50 border border-red-200">
+        <div className="mt-3 p-4 rounded-xl bg-[#EBCB8B]/20 border border-[#BF616A]">
           <div className="flex items-start space-x-3">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-[#BF616A] flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-red-700">上传失败</p>
-              <p className="text-sm text-red-600 mt-1">{uploadState.message}</p>
+              <p className="text-sm font-medium text-[#BF616A]">上传失败</p>
+              <p className="text-sm text-[#D08770] mt-1">{uploadState.message}</p>
             </div>
           </div>
         </div>
