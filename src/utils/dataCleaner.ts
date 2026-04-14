@@ -2,6 +2,8 @@ export type FillMethod = 'forward' | 'backward' | 'linear' | 'mean' | 'median' |
 
 export type ConversionType = 'textToNumber' | 'numberToText' | 'toDate' | 'toText' | 'custom';
 
+export type NormalizeMethod = 'minMax' | 'zScore' | 'decimal' | 'log';
+
 export interface FillNullOptions {
   method: FillMethod;
   customValue?: string | number;
@@ -13,11 +15,16 @@ export interface ConversionOptions {
   customFormat?: string;
 }
 
+export interface NormalizeOptions {
+  method: NormalizeMethod;
+  targetRange?: { min: number; max: number };
+}
+
 export interface CleaningOperation {
   id: string;
-  type: 'fillNull' | 'removeNull' | 'convert' | 'deduplicate' | 'removeOutliers';
+  type: 'fillNull' | 'removeNull' | 'convert' | 'deduplicate' | 'removeOutliers' | 'normalize';
   column?: string;
-  options?: FillNullOptions | ConversionOptions | { threshold?: number };
+  options?: FillNullOptions | ConversionOptions | { threshold?: number } | NormalizeOptions;
   preview?: boolean;
 }
 
@@ -327,6 +334,91 @@ export function removeOutliers(
   };
 }
 
+export function normalizeColumn(
+  data: Record<string, any>[],
+  column: string,
+  options: NormalizeOptions
+): { data: Record<string, any>[]; modifiedCount: number; stats: { min?: number; max?: number; mean?: number; std?: number } } {
+  const result = [...data];
+  let modifiedCount = 0;
+
+  const numericValues = data
+    .map(row => row[column])
+    .filter(v => typeof v === 'number' && !isNaN(v)) as number[];
+
+  if (numericValues.length === 0) {
+    return { data: result, modifiedCount: 0, stats: {} };
+  }
+
+  const min = Math.min(...numericValues);
+  const max = Math.max(...numericValues);
+  const mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+  const variance = numericValues.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / numericValues.length;
+  const std = Math.sqrt(variance);
+
+  const targetMin = options.targetRange?.min ?? 0;
+  const targetMax = options.targetRange?.max ?? 1;
+
+  for (let i = 0; i < result.length; i++) {
+    const value = result[i][column];
+    if (typeof value === 'number' && !isNaN(value)) {
+      let normalizedValue: number;
+
+      switch (options.method) {
+        case 'minMax':
+          if (max !== min) {
+            normalizedValue = targetMin + ((value - min) / (max - min)) * (targetMax - targetMin);
+          } else {
+            normalizedValue = targetMin;
+          }
+          break;
+
+        case 'zScore':
+          if (std !== 0) {
+            normalizedValue = (value - mean) / std;
+          } else {
+            normalizedValue = 0;
+          }
+          break;
+
+        case 'decimal':
+          const absValue = Math.abs(value);
+          if (absValue > 0) {
+            const scale = Math.pow(10, Math.ceil(Math.log10(absValue)));
+            normalizedValue = value / scale;
+          } else {
+            normalizedValue = 0;
+          }
+          break;
+
+        case 'log':
+          if (value > 0) {
+            normalizedValue = Math.log(value);
+          } else if (value === 0) {
+            normalizedValue = 0;
+          } else {
+            normalizedValue = NaN;
+          }
+          break;
+
+        default:
+          normalizedValue = value;
+      }
+
+      if (!isNaN(normalizedValue)) {
+        result[i] = { ...result[i], [column]: Number(normalizedValue.toFixed(6)) };
+        modifiedCount++;
+      }
+    }
+  }
+
+  return {
+    data: result,
+    modifiedCount,
+    stats: { min, max, mean, std }
+  };
+}
+
 export function getColumnStats(data: Record<string, any>[], column: string): {
   nullCount: number;
   uniqueCount: number;
@@ -409,6 +501,21 @@ export function applyCleaningOperations(
           result = outlierResult.data;
           totalRemovedRows += outlierResult.removedCount;
           operationLogs.push(`删除异常值: ${op.column} (${outlierResult.removedCount} 行)`);
+        }
+        break;
+
+      case 'normalize':
+        if (op.column && op.options) {
+          const normalizeResult = normalizeColumn(result, op.column, op.options as NormalizeOptions);
+          result = normalizeResult.data;
+          totalModifiedCells += normalizeResult.modifiedCount;
+          const methodNames: Record<NormalizeMethod, string> = {
+            minMax: 'Min-Max归一化',
+            zScore: 'Z-Score标准化',
+            decimal: '小数定标',
+            log: '对数变换'
+          };
+          operationLogs.push(`${methodNames[(op.options as NormalizeOptions).method]}: ${op.column} (${normalizeResult.modifiedCount} 个单元格)`);
         }
         break;
     }

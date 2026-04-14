@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Eraser, Droplets, RefreshCw, ArrowUp, ArrowDown, TrendingUp, Hash, Type, Copy, AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { Eraser, Droplets, RefreshCw, ArrowUp, ArrowDown, TrendingUp, Hash, Type, Copy, AlertTriangle, CheckCircle, X, Scale } from 'lucide-react';
 import {
   FillMethod,
   ConversionType,
+  NormalizeMethod,
   FillNullOptions,
   ConversionOptions,
+  NormalizeOptions,
   getColumnStats,
   fillNullValues,
   removeNullRows,
@@ -12,6 +14,7 @@ import {
   removeDuplicates,
   detectOutliers,
   removeOutliers,
+  normalizeColumn,
 } from '../utils/dataCleaner';
 
 interface DataCleanerProps {
@@ -38,7 +41,14 @@ const conversionOptions: { value: ConversionType; label: string }[] = [
   { value: 'toText', label: '转换为文本' },
 ];
 
-type CleaningTab = 'fillNull' | 'removeNull' | 'convert' | 'deduplicate' | 'outliers';
+const normalizeMethodOptions: { value: NormalizeMethod; label: string; description: string }[] = [
+  { value: 'minMax', label: 'Min-Max归一化', description: '缩放到 [0, 1] 范围' },
+  { value: 'zScore', label: 'Z-Score标准化', description: '均值为0，标准差为1' },
+  { value: 'decimal', label: '小数定标', description: '按数量级缩放' },
+  { value: 'log', label: '对数变换', description: '取自然对数（仅正数）' },
+];
+
+type CleaningTab = 'fillNull' | 'removeNull' | 'convert' | 'deduplicate' | 'outliers' | 'normalize';
 
 const DataCleaner: React.FC<DataCleanerProps> = ({
   data,
@@ -52,6 +62,7 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
   const [customValue, setCustomValue] = useState<string>('');
   const [conversionType, setConversionType] = useState<ConversionType>('textToNumber');
   const [outlierThreshold, setOutlierThreshold] = useState<number>(1.5);
+  const [normalizeMethod, setNormalizeMethod] = useState<NormalizeMethod>('minMax');
   const [previewData, setPreviewData] = useState<Record<string, any>[] | null>(null);
   const [operationResult, setOperationResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -127,6 +138,34 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
     });
   }, [data, selectedColumn, outlierThreshold]);
 
+  const handleNormalize = useCallback(() => {
+    if (!selectedColumn) return;
+    
+    const options: NormalizeOptions = {
+      method: normalizeMethod,
+    };
+    
+    const result = normalizeColumn(data, selectedColumn, options);
+    setPreviewData(result.data.slice(0, 50));
+    
+    const methodNames: Record<NormalizeMethod, string> = {
+      minMax: 'Min-Max归一化',
+      zScore: 'Z-Score标准化',
+      decimal: '小数定标',
+      log: '对数变换',
+    };
+    
+    let message = `${methodNames[normalizeMethod]}完成，已处理 ${result.modifiedCount} 个单元格`;
+    if (result.stats.min !== undefined && result.stats.max !== undefined) {
+      message += ` (原范围: ${result.stats.min.toFixed(2)} ~ ${result.stats.max.toFixed(2)})`;
+    }
+    
+    setOperationResult({
+      type: 'success',
+      message,
+    });
+  }, [data, selectedColumn, normalizeMethod]);
+
   const handleApply = useCallback(() => {
     if (previewData) {
       onClean(previewData.concat(data.slice(previewData.length)));
@@ -144,6 +183,7 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
     { id: 'convert', label: '格式转换', icon: <RefreshCw className="w-4 h-4" /> },
     { id: 'deduplicate', label: '数据去重', icon: <Copy className="w-4 h-4" /> },
     { id: 'outliers', label: '异常值', icon: <AlertTriangle className="w-4 h-4" /> },
+    { id: 'normalize', label: '归一化', icon: <Scale className="w-4 h-4" /> },
   ];
 
   return (
@@ -383,6 +423,93 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
 
             <button onClick={handleRemoveOutliers} className="btn btn-secondary w-full">
               预览删除异常值
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'normalize' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>归一化方法</label>
+              <div className="space-y-2">
+                {normalizeMethodOptions.map((option) => (
+                  <label 
+                    key={option.value} 
+                    className="flex items-start space-x-3 cursor-pointer p-3 rounded-xl border transition-colors"
+                    style={{
+                      backgroundColor: normalizeMethod === option.value ? 'rgba(var(--color-primary-rgb, 94, 129, 172), 0.2)' : 'var(--color-surface-hover)',
+                      borderColor: normalizeMethod === option.value ? 'var(--color-accent)' : 'var(--color-border)'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (normalizeMethod !== option.value) {
+                        e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (normalizeMethod !== option.value) {
+                        e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
+                      }
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="normalizeMethod"
+                      value={option.value}
+                      checked={normalizeMethod === option.value}
+                      onChange={() => setNormalizeMethod(option.value)}
+                      className="mt-1"
+                      style={{ accentColor: 'var(--color-primary)' }}
+                    />
+                    <div>
+                      <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{option.label}</span>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{option.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {columnStats && columnStats.min !== undefined && columnStats.max !== undefined && (
+              <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
+                <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>当前列统计</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>最小值:</span>
+                    <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.min.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>最大值:</span>
+                    <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.max.toFixed(2)}</span>
+                  </div>
+                  {columnStats.mean !== undefined && (
+                    <div>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>均值:</span>
+                      <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.mean.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {columnStats.median !== undefined && (
+                    <div>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>中位数:</span>
+                      <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.median.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {normalizeMethod === 'log' && columnStats && columnStats.min !== undefined && columnStats.min < 0 && (
+              <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(var(--color-warning-rgb, 235, 203, 139), 0.2)', borderColor: 'var(--color-warning)' }}>
+                <div className="flex items-start space-x-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--color-warning)' }} />
+                  <p className="text-sm" style={{ color: 'var(--color-warning)' }}>
+                    对数变换仅适用于正数，负值将被跳过
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <button onClick={handleNormalize} className="btn btn-primary w-full">
+              预览归一化结果
             </button>
           </div>
         )}
