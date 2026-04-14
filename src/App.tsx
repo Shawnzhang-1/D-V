@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Download, RefreshCw, FileSpreadsheet, BarChart2, Sparkles, Zap, FileImage, Image, FileText, Settings2, Filter, Eraser, Eye, Check, Database, LineChart, Table2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, RefreshCw, FileSpreadsheet, BarChart2, Sparkles, Zap, FileImage, Image, FileText, Settings2, Filter, Eye, Check, Database, LineChart, Table2, ChevronDown, ChevronUp, Droplets, RefreshCw as Convert, Copy, AlertTriangle, Scale } from 'lucide-react';
 import FileUpload from './components/FileUpload';
 import DataPreview from './components/DataPreview';
 import DataFilter from './components/DataFilter';
@@ -13,7 +13,7 @@ import { parseFile, previewFile, ParsedData, sampleDataByRange } from './utils/f
 import { analyzeAllColumns, ColumnMeta } from './utils/dataFilter';
 import { exportChartAsSvg, exportChartAsPng, exportChartAsPdf } from './utils/exportSvg';
 
-type ActiveDataTab = 'filter' | 'clean' | 'settings';
+type ActiveDataTab = 'filter' | 'fillNull' | 'convert' | 'deduplicate' | 'outliers' | 'normalize' | 'settings';
 
 interface PreviewState {
   rows: any[][];
@@ -235,7 +235,11 @@ function App() {
 
   const dataTabs: { id: ActiveDataTab; label: string; icon: React.ReactNode }[] = [
     { id: 'filter', label: '数据筛选', icon: <Filter className="w-4 h-4" /> },
-    { id: 'clean', label: '数据清洗', icon: <Eraser className="w-4 h-4" /> },
+    { id: 'fillNull', label: '空值填充', icon: <Droplets className="w-4 h-4" /> },
+    { id: 'convert', label: '格式转换', icon: <Convert className="w-4 h-4" /> },
+    { id: 'deduplicate', label: '数据去重', icon: <Copy className="w-4 h-4" /> },
+    { id: 'outliers', label: '异常值', icon: <AlertTriangle className="w-4 h-4" /> },
+    { id: 'normalize', label: '归一化', icon: <Scale className="w-4 h-4" /> },
     { id: 'settings', label: '解析设置', icon: <Settings2 className="w-4 h-4" /> },
   ];
 
@@ -639,11 +643,12 @@ function App() {
                       />
                     )}
 
-                    {activeDataTab === 'clean' && (
+                    {(activeDataTab === 'fillNull' || activeDataTab === 'convert' || activeDataTab === 'deduplicate' || activeDataTab === 'outliers' || activeDataTab === 'normalize') && (
                       <DataCleaner
                         data={filteredData || parsedData.data}
                         columns={parsedData.headers}
                         onClean={handleClean}
+                        activeTab={activeDataTab}
                       />
                     )}
 

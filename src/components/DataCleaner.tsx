@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Eraser, Droplets, RefreshCw, ArrowUp, ArrowDown, TrendingUp, Hash, Type, Copy, AlertTriangle, CheckCircle, X, Scale } from 'lucide-react';
+import { AlertTriangle, CheckCircle, X, Trash2, ArrowUp, ArrowDown, TrendingUp, Hash, Type } from 'lucide-react';
 import {
   FillMethod,
   ConversionType,
@@ -21,10 +21,12 @@ interface DataCleanerProps {
   data: Record<string, any>[];
   columns: string[];
   onClean: (cleanedData: Record<string, any>[]) => void;
+  activeTab: 'fillNull' | 'convert' | 'deduplicate' | 'outliers' | 'normalize';
   className?: string;
 }
 
-const fillMethodOptions: { value: FillMethod; label: string; icon: React.ReactNode }[] = [
+const fillMethodOptions: { value: FillMethod | 'remove'; label: string; icon: React.ReactNode }[] = [
+  { value: 'remove', label: '删除空值行', icon: <Trash2 className="w-4 h-4" /> },
   { value: 'forward', label: '向上填充', icon: <ArrowUp className="w-4 h-4" /> },
   { value: 'backward', label: '向下填充', icon: <ArrowDown className="w-4 h-4" /> },
   { value: 'linear', label: '线性插值', icon: <TrendingUp className="w-4 h-4" /> },
@@ -48,78 +50,116 @@ const normalizeMethodOptions: { value: NormalizeMethod; label: string; descripti
   { value: 'log', label: '对数变换', description: '取自然对数（仅正数）' },
 ];
 
-type CleaningTab = 'fillNull' | 'removeNull' | 'convert' | 'deduplicate' | 'outliers' | 'normalize';
-
 const DataCleaner: React.FC<DataCleanerProps> = ({
   data,
   columns,
   onClean,
+  activeTab,
   className = '',
 }) => {
-  const [activeTab, setActiveTab] = useState<CleaningTab>('fillNull');
-  const [selectedColumn, setSelectedColumn] = useState<string>(columns[0] || '');
-  const [fillMethod, setFillMethod] = useState<FillMethod>('forward');
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [fillMethod, setFillMethod] = useState<FillMethod | 'remove'>('forward');
   const [customValue, setCustomValue] = useState<string>('');
   const [conversionType, setConversionType] = useState<ConversionType>('textToNumber');
   const [outlierThreshold, setOutlierThreshold] = useState<number>(1.5);
   const [normalizeMethod, setNormalizeMethod] = useState<NormalizeMethod>('minMax');
   const [previewData, setPreviewData] = useState<Record<string, any>[] | null>(null);
+  const [fullProcessedData, setFullProcessedData] = useState<Record<string, any>[] | null>(null);
   const [operationResult, setOperationResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  const numericColumns = useMemo(() => {
+    return columns.filter(col => {
+      const values = data.slice(0, 100).map(row => row[col]);
+      const numericCount = values.filter(v => typeof v === 'number' && !isNaN(v)).length;
+      return numericCount > values.length * 0.5;
+    });
+  }, [data, columns]);
+
   const columnStats = useMemo(() => {
-    if (!selectedColumn) return null;
-    return getColumnStats(data, selectedColumn);
-  }, [data, selectedColumn]);
+    if (selectedColumns.length === 0) return null;
+    return getColumnStats(data, selectedColumns[0]);
+  }, [data, selectedColumns]);
 
   const outlierInfo = useMemo(() => {
-    if (!selectedColumn) return null;
-    return detectOutliers(data, selectedColumn, outlierThreshold);
-  }, [data, selectedColumn, outlierThreshold]);
+    if (selectedColumns.length === 0) return null;
+    return detectOutliers(data, selectedColumns[0], outlierThreshold);
+  }, [data, selectedColumns, outlierThreshold]);
+
+  const toggleColumn = useCallback((col: string) => {
+    setSelectedColumns(prev => 
+      prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
+    );
+  }, []);
+
+  const selectAllColumns = useCallback(() => {
+    if (activeTab === 'fillNull' || activeTab === 'convert') {
+      setSelectedColumns([...columns]);
+    } else if (activeTab === 'normalize' || activeTab === 'outliers') {
+      setSelectedColumns([...numericColumns]);
+    }
+  }, [columns, numericColumns, activeTab]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedColumns([]);
+  }, []);
 
   const handleFillNull = useCallback(() => {
-    if (!selectedColumn) return;
+    if (selectedColumns.length === 0) return;
     
-    const options: FillNullOptions = {
-      method: fillMethod,
-      customValue: fillMethod === 'custom' ? customValue : undefined,
-    };
-    
-    const result = fillNullValues(data, selectedColumn, options);
-    setPreviewData(result.data.slice(0, 50));
-    setOperationResult({
-      type: 'success',
-      message: `已填充 ${result.modifiedCount} 个空值单元格`,
-    });
-  }, [data, selectedColumn, fillMethod, customValue]);
+    let result = [...data];
+    let totalModified = 0;
+    let totalRemoved = 0;
 
-  const handleRemoveNull = useCallback(() => {
-    if (!selectedColumn) return;
-    
-    const result = removeNullRows(data, [selectedColumn]);
-    setPreviewData(result.data.slice(0, 50));
+    for (const column of selectedColumns) {
+      if (fillMethod === 'remove') {
+        const removeResult = removeNullRows(result, [column]);
+        result = removeResult.data;
+        totalRemoved += removeResult.removedCount;
+      } else {
+        const options: FillNullOptions = {
+          method: fillMethod as FillMethod,
+          customValue: fillMethod === 'custom' ? customValue : undefined,
+        };
+        const fillResult = fillNullValues(result, column, options);
+        result = fillResult.data;
+        totalModified += fillResult.modifiedCount;
+      }
+    }
+
+    setFullProcessedData(result);
+    setPreviewData(result.slice(0, 50));
     setOperationResult({
       type: 'success',
-      message: `已删除 ${result.removedCount} 行包含空值的数据`,
+      message: fillMethod === 'remove' 
+        ? `已删除 ${totalRemoved} 行空值数据` 
+        : `已填充 ${totalModified} 个空值单元格`,
     });
-  }, [data, selectedColumn]);
+  }, [data, selectedColumns, fillMethod, customValue]);
 
   const handleConvert = useCallback(() => {
-    if (!selectedColumn) return;
+    if (selectedColumns.length === 0) return;
     
-    const options: ConversionOptions = {
-      type: conversionType,
-    };
-    
-    const result = convertColumn(data, selectedColumn, options);
-    setPreviewData(result.data.slice(0, 50));
+    let result = [...data];
+    let totalModified = 0;
+
+    for (const column of selectedColumns) {
+      const options: ConversionOptions = { type: conversionType };
+      const convertResult = convertColumn(result, column, options);
+      result = convertResult.data;
+      totalModified += convertResult.modifiedCount;
+    }
+
+    setFullProcessedData(result);
+    setPreviewData(result.slice(0, 50));
     setOperationResult({
       type: 'success',
-      message: `已转换 ${result.modifiedCount} 个单元格${result.errorCount > 0 ? `，${result.errorCount} 个转换失败` : ''}`,
+      message: `已转换 ${totalModified} 个单元格`,
     });
-  }, [data, selectedColumn, conversionType]);
+  }, [data, selectedColumns, conversionType]);
 
   const handleDeduplicate = useCallback(() => {
     const result = removeDuplicates(data, columns);
+    setFullProcessedData(result.data);
     setPreviewData(result.data.slice(0, 50));
     setOperationResult({
       type: 'success',
@@ -128,25 +168,44 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
   }, [data, columns]);
 
   const handleRemoveOutliers = useCallback(() => {
-    if (!selectedColumn) return;
+    if (selectedColumns.length === 0) return;
     
-    const result = removeOutliers(data, selectedColumn, outlierThreshold);
-    setPreviewData(result.data.slice(0, 50));
+    let result = [...data];
+    let totalRemoved = 0;
+
+    for (const column of selectedColumns) {
+      const outlierResult = removeOutliers(result, column, outlierThreshold);
+      result = outlierResult.data;
+      totalRemoved += outlierResult.removedCount;
+    }
+
+    setFullProcessedData(result);
+    setPreviewData(result.slice(0, 50));
     setOperationResult({
       type: 'success',
-      message: `已删除 ${result.removedCount} 行异常值数据`,
+      message: `已删除 ${totalRemoved} 行异常值数据`,
     });
-  }, [data, selectedColumn, outlierThreshold]);
+  }, [data, selectedColumns, outlierThreshold]);
 
   const handleNormalize = useCallback(() => {
-    if (!selectedColumn) return;
+    if (selectedColumns.length === 0) return;
     
-    const options: NormalizeOptions = {
-      method: normalizeMethod,
-    };
-    
-    const result = normalizeColumn(data, selectedColumn, options);
-    setPreviewData(result.data.slice(0, 50));
+    let result = [...data];
+    let totalModified = 0;
+    const statsList: Array<{ min?: number; max?: number }> = [];
+
+    for (const column of selectedColumns) {
+      const options: NormalizeOptions = { method: normalizeMethod };
+      const normalizeResult = normalizeColumn(result, column, options);
+      result = normalizeResult.data;
+      totalModified += normalizeResult.modifiedCount;
+      if (normalizeResult.stats.min !== undefined) {
+        statsList.push(normalizeResult.stats);
+      }
+    }
+
+    setFullProcessedData(result);
+    setPreviewData(result.slice(0, 50));
     
     const methodNames: Record<NormalizeMethod, string> = {
       minMax: 'Min-Max归一化',
@@ -155,482 +214,454 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
       log: '对数变换',
     };
     
-    let message = `${methodNames[normalizeMethod]}完成，已处理 ${result.modifiedCount} 个单元格`;
-    if (result.stats.min !== undefined && result.stats.max !== undefined) {
-      message += ` (原范围: ${result.stats.min.toFixed(2)} ~ ${result.stats.max.toFixed(2)})`;
+    let message = `${methodNames[normalizeMethod]}完成，已处理 ${totalModified} 个单元格`;
+    if (statsList.length > 0) {
+      const minVal = Math.min(...statsList.map(s => s.min ?? Infinity));
+      const maxVal = Math.max(...statsList.map(s => s.max ?? -Infinity));
+      if (minVal !== Infinity && maxVal !== -Infinity) {
+        message += ` (原范围: ${minVal.toFixed(2)} ~ ${maxVal.toFixed(2)})`;
+      }
     }
     
-    setOperationResult({
-      type: 'success',
-      message,
-    });
-  }, [data, selectedColumn, normalizeMethod]);
+    setOperationResult({ type: 'success', message });
+  }, [data, selectedColumns, normalizeMethod]);
 
   const handleApply = useCallback(() => {
-    if (previewData) {
-      onClean(previewData.concat(data.slice(previewData.length)));
-      setOperationResult({
-        type: 'success',
-        message: '清洗结果已应用到数据',
-      });
+    if (fullProcessedData) {
+      onClean(fullProcessedData);
       setPreviewData(null);
+      setFullProcessedData(null);
+      setOperationResult(null);
     }
-  }, [previewData, data, onClean]);
+  }, [fullProcessedData, onClean]);
 
-  const tabs: { id: CleaningTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'fillNull', label: '空值填充', icon: <Droplets className="w-4 h-4" /> },
-    { id: 'removeNull', label: '删除空值', icon: <Eraser className="w-4 h-4" /> },
-    { id: 'convert', label: '格式转换', icon: <RefreshCw className="w-4 h-4" /> },
-    { id: 'deduplicate', label: '数据去重', icon: <Copy className="w-4 h-4" /> },
-    { id: 'outliers', label: '异常值', icon: <AlertTriangle className="w-4 h-4" /> },
-    { id: 'normalize', label: '归一化', icon: <Scale className="w-4 h-4" /> },
-  ];
+  const availableColumns = activeTab === 'normalize' || activeTab === 'outliers' 
+    ? numericColumns 
+    : columns;
 
   return (
-    <div className={`card overflow-hidden ${className}`}>
-      <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="flex items-center space-x-3">
-          <div 
-            className="p-2 rounded-xl"
-            style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-md)' }}
-          >
-            <Eraser className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>数据清洗</h2>
-            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>处理空值、格式转换、去重</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-b" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="flex overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setPreviewData(null); setOperationResult(null); }}
-              className="flex items-center space-x-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2"
-              style={{
-                color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                borderColor: activeTab === tab.id ? 'var(--color-primary)' : 'transparent',
-                backgroundColor: activeTab === tab.id ? 'var(--color-surface)' : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }
-              }}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="p-6">
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>选择列</label>
-          <select
-            value={selectedColumn}
-            onChange={(e) => { setSelectedColumn(e.target.value); setPreviewData(null); setOperationResult(null); }}
-            className="input select"
-          >
-            {columns.map((col) => (
-              <option key={col} value={col}>{col}</option>
-            ))}
-          </select>
-        </div>
-
-        {columnStats && (
-          <div className="mb-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--color-surface-hover)' }}>
-            <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>列统计</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <div>
-                <span style={{ color: 'var(--color-text-secondary)' }}>空值:</span>
-                <span className="ml-1 font-medium" style={{ color: 'var(--color-error)' }}>{columnStats.nullCount}</span>
-              </div>
-              <div>
-                <span style={{ color: 'var(--color-text-secondary)' }}>唯一值:</span>
-                <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.uniqueCount}</span>
-              </div>
-              {columnStats.min !== undefined && (
-                <div>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>最小值:</span>
-                  <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.min?.toFixed(2)}</span>
-                </div>
-              )}
-              {columnStats.max !== undefined && (
-                <div>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>最大值:</span>
-                  <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.max?.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'fillNull' && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>填充方式</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {fillMethodOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setFillMethod(option.value)}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-xl text-sm transition-colors border-2"
-                    style={{
-                      backgroundColor: fillMethod === option.value ? 'rgba(var(--color-primary-rgb, 94, 129, 172), 0.2)' : 'var(--color-surface-hover)',
-                      color: fillMethod === option.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                      borderColor: fillMethod === option.value ? 'var(--color-accent)' : 'transparent'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (fillMethod !== option.value) {
-                        e.currentTarget.style.backgroundColor = 'var(--color-surface)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (fillMethod !== option.value) {
-                        e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
-                      }
-                    }}
-                  >
-                    {option.icon}
-                    <span>{option.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {fillMethod === 'custom' && (
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>自定义值</label>
-                <input
-                  type="text"
-                  value={customValue}
-                  onChange={(e) => setCustomValue(e.target.value)}
-                  className="input"
-                  placeholder="输入填充值"
-                />
-              </div>
-            )}
-
-            <button onClick={handleFillNull} className="btn btn-primary w-full">
-              预览填充结果
-            </button>
-          </div>
-        )}
-
-        {activeTab === 'removeNull' && (
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(var(--color-warning-rgb, 235, 203, 139), 0.2)', borderColor: 'var(--color-warning)' }}>
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--color-warning)' }} />
-                <div>
-                  <h4 className="text-sm font-medium" style={{ color: 'var(--color-warning)' }}>删除空值行</h4>
-                  <p className="text-sm mt-1" style={{ color: 'var(--color-warning)' }}>
-                    将删除 "{selectedColumn}" 列中所有包含空值的行
-                  </p>
-                  {columnStats && (
-                    <p className="text-sm mt-1" style={{ color: 'var(--color-warning)' }}>
-                      预计删除: <span className="font-bold">{columnStats.nullCount}</span> 行
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <button onClick={handleRemoveNull} className="btn btn-secondary w-full">
-              预览删除结果
-            </button>
-          </div>
-        )}
-
-        {activeTab === 'convert' && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>转换类型</label>
-              <select
-                value={conversionType}
-                onChange={(e) => setConversionType(e.target.value as ConversionType)}
-                className="input select"
+    <div className={`space-y-4 ${className}`}>
+      {(activeTab === 'fillNull' || activeTab === 'convert' || activeTab === 'normalize' || activeTab === 'outliers') && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+              选择列 {activeTab === 'normalize' || activeTab === 'outliers' ? '(仅数值列)' : ''}
+            </label>
+            <div className="flex space-x-2">
+              <button 
+                onClick={selectAllColumns}
+                className="text-xs px-2 py-1 rounded"
+                style={{ color: 'var(--color-primary)', backgroundColor: 'var(--color-surface-hover)' }}
               >
-                {conversionOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                全选
+              </button>
+              <button 
+                onClick={clearSelection}
+                className="text-xs px-2 py-1 rounded"
+                style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
+              >
+                清除
+              </button>
             </div>
-
-            <button onClick={handleConvert} className="btn btn-primary w-full">
-              预览转换结果
-            </button>
           </div>
-        )}
+          <div className="flex flex-wrap gap-2 p-3 rounded-xl border max-h-32 overflow-y-auto scrollbar-thin" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+            {availableColumns.map((col) => (
+              <button
+                key={col}
+                onClick={() => toggleColumn(col)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  backgroundColor: selectedColumns.includes(col) ? 'var(--color-primary)' : 'var(--color-surface-hover)',
+                  color: selectedColumns.includes(col) ? '#fff' : 'var(--color-text)',
+                  border: `1px solid ${selectedColumns.includes(col) ? 'var(--color-primary)' : 'var(--color-border)'}`
+                }}
+              >
+                {col}
+              </button>
+            ))}
+          </div>
+          {selectedColumns.length > 0 && (
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              已选择 {selectedColumns.length} 列
+            </p>
+          )}
+        </div>
+      )}
 
-        {activeTab === 'deduplicate' && (
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(var(--color-primary-rgb, 129, 161, 193), 0.2)', borderColor: 'var(--color-primary)' }}>
-              <h4 className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>全行去重</h4>
-              <p className="text-sm mt-1" style={{ color: 'var(--color-primary)' }}>
-                将删除所有完全相同的行，保留第一次出现的行
+      {activeTab === 'fillNull' && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>填充方式</label>
+            <div className="grid grid-cols-2 gap-2">
+              {fillMethodOptions.map((option) => (
+                <label 
+                  key={option.value} 
+                  className="flex items-center space-x-2 cursor-pointer p-3 rounded-xl border transition-colors"
+                  style={{
+                    backgroundColor: fillMethod === option.value ? 'rgba(var(--color-primary-rgb, 94, 129, 172), 0.2)' : 'var(--color-surface-hover)',
+                    borderColor: fillMethod === option.value ? 'var(--color-accent)' : 'var(--color-border)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (fillMethod !== option.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (fillMethod !== option.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
+                    }
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="fillMethod"
+                    value={option.value}
+                    checked={fillMethod === option.value}
+                    onChange={() => setFillMethod(option.value as FillMethod | 'remove')}
+                    className="hidden"
+                  />
+                  <span style={{ color: fillMethod === option.value ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>
+                    {option.icon}
+                  </span>
+                  <span className="text-sm" style={{ color: 'var(--color-text)' }}>{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {fillMethod === 'custom' && (
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>自定义填充值</label>
+              <input
+                type="text"
+                value={customValue}
+                onChange={(e) => setCustomValue(e.target.value)}
+                placeholder="输入填充值..."
+                className="input"
+              />
+            </div>
+          )}
+
+          {columnStats && columnStats.nullCount !== undefined && columnStats.nullCount > 0 && (
+            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
+              <p className="text-sm" style={{ color: 'var(--color-text)' }}>
+                当前列 <strong>{selectedColumns[0]}</strong> 有 <strong style={{ color: 'var(--color-warning)' }}>{columnStats.nullCount}</strong> 个空值
               </p>
             </div>
+          )}
 
-            <button onClick={handleDeduplicate} className="btn btn-primary w-full">
-              预览去重结果
-            </button>
+          <button onClick={handleFillNull} className="btn btn-primary w-full" disabled={selectedColumns.length === 0}>
+            预览填充结果
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'convert' && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>转换类型</label>
+            <div className="space-y-2">
+              {conversionOptions.map((option) => (
+                <label 
+                  key={option.value} 
+                  className="flex items-center space-x-3 cursor-pointer p-3 rounded-xl border transition-colors"
+                  style={{
+                    backgroundColor: conversionType === option.value ? 'rgba(var(--color-primary-rgb, 94, 129, 172), 0.2)' : 'var(--color-surface-hover)',
+                    borderColor: conversionType === option.value ? 'var(--color-accent)' : 'var(--color-border)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (conversionType !== option.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (conversionType !== option.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
+                    }
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="conversionType"
+                    value={option.value}
+                    checked={conversionType === option.value}
+                    onChange={() => setConversionType(option.value)}
+                    className="hidden"
+                  />
+                  <span className="text-sm" style={{ color: 'var(--color-text)' }}>{option.label}</span>
+                </label>
+              ))}
+            </div>
           </div>
-        )}
 
-        {activeTab === 'outliers' && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
-                异常值阈值 (IQR倍数): {outlierThreshold}
-              </label>
+          <button onClick={handleConvert} className="btn btn-primary w-full" disabled={selectedColumns.length === 0}>
+            预览转换结果
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'deduplicate' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
+            <p className="text-sm" style={{ color: 'var(--color-text)' }}>
+              数据去重将删除所有列值完全相同的行，保留第一个出现的行。
+            </p>
+            <p className="text-xs mt-2" style={{ color: 'var(--color-text-secondary)' }}>
+              当前数据: {data.length} 行
+            </p>
+          </div>
+
+          <button onClick={handleDeduplicate} className="btn btn-primary w-full">
+            预览去重结果
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'outliers' && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+              异常值阈值 (IQR倍数)
+            </label>
+            <div className="flex items-center space-x-4">
               <input
                 type="range"
                 min="0.5"
-                max="3"
+                max="5"
                 step="0.1"
                 value={outlierThreshold}
                 onChange={(e) => setOutlierThreshold(parseFloat(e.target.value))}
-                className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                style={{ backgroundColor: 'var(--color-border)', accentColor: 'var(--color-primary)' }}
+                className="flex-1"
               />
-              <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                较小的值会识别更多异常值
-              </p>
-            </div>
-
-            {outlierInfo && outlierInfo.indices.length > 0 && (
-              <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(var(--color-warning-rgb, 235, 203, 139), 0.2)', borderColor: 'var(--color-warning)' }}>
-                <h4 className="text-sm font-medium" style={{ color: 'var(--color-warning)' }}>检测到异常值</h4>
-                <p className="text-sm mt-1" style={{ color: 'var(--color-warning)' }}>
-                  发现 <span className="font-bold">{outlierInfo.indices.length}</span> 个异常值
-                </p>
-                <p className="text-xs mt-1" style={{ color: 'var(--color-warning)' }}>
-                  正常范围: [{outlierInfo.lowerBound.toFixed(2)}, {outlierInfo.upperBound.toFixed(2)}]
-                </p>
-              </div>
-            )}
-
-            <button onClick={handleRemoveOutliers} className="btn btn-secondary w-full">
-              预览删除异常值
-            </button>
-          </div>
-        )}
-
-        {activeTab === 'normalize' && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>归一化方法</label>
-              <div className="space-y-2">
-                {normalizeMethodOptions.map((option) => (
-                  <label 
-                    key={option.value} 
-                    className="flex items-start space-x-3 cursor-pointer p-3 rounded-xl border transition-colors"
-                    style={{
-                      backgroundColor: normalizeMethod === option.value ? 'rgba(var(--color-primary-rgb, 94, 129, 172), 0.2)' : 'var(--color-surface-hover)',
-                      borderColor: normalizeMethod === option.value ? 'var(--color-accent)' : 'var(--color-border)'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (normalizeMethod !== option.value) {
-                        e.currentTarget.style.backgroundColor = 'var(--color-surface)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (normalizeMethod !== option.value) {
-                        e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
-                      }
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="normalizeMethod"
-                      value={option.value}
-                      checked={normalizeMethod === option.value}
-                      onChange={() => setNormalizeMethod(option.value)}
-                      className="mt-1"
-                      style={{ accentColor: 'var(--color-primary)' }}
-                    />
-                    <div>
-                      <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{option.label}</span>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{option.description}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {columnStats && columnStats.min !== undefined && columnStats.max !== undefined && (
-              <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
-                <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>当前列统计</h4>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>最小值:</span>
-                    <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.min.toFixed(2)}</span>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>最大值:</span>
-                    <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.max.toFixed(2)}</span>
-                  </div>
-                  {columnStats.mean !== undefined && (
-                    <div>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>均值:</span>
-                      <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.mean.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {columnStats.median !== undefined && (
-                    <div>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>中位数:</span>
-                      <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.median.toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {normalizeMethod === 'log' && columnStats && columnStats.min !== undefined && columnStats.min < 0 && (
-              <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(var(--color-warning-rgb, 235, 203, 139), 0.2)', borderColor: 'var(--color-warning)' }}>
-                <div className="flex items-start space-x-2">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--color-warning)' }} />
-                  <p className="text-sm" style={{ color: 'var(--color-warning)' }}>
-                    对数变换仅适用于正数，负值将被跳过
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <button onClick={handleNormalize} className="btn btn-primary w-full">
-              预览归一化结果
-            </button>
-          </div>
-        )}
-
-        {operationResult && (
-          <div 
-            className="mt-4 p-4 rounded-xl border"
-            style={{ 
-              backgroundColor: operationResult.type === 'success' ? 'rgba(var(--color-success-rgb, 163, 190, 140), 0.2)' : 'rgba(var(--color-error-rgb, 191, 97, 106), 0.2)',
-              borderColor: operationResult.type === 'success' ? 'var(--color-success)' : 'var(--color-error)'
-            }}
-          >
-            <div className="flex items-center space-x-2">
-              {operationResult.type === 'success' ? (
-                <CheckCircle className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
-              ) : (
-                <X className="w-5 h-5" style={{ color: 'var(--color-error)' }} />
-              )}
-              <span 
-                className="text-sm font-medium"
-                style={{ color: operationResult.type === 'success' ? 'var(--color-success)' : 'var(--color-error)' }}
-              >
-                {operationResult.message}
+              <span className="text-sm font-medium w-12 text-center" style={{ color: 'var(--color-text)' }}>
+                {outlierThreshold.toFixed(1)}
               </span>
             </div>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              值越小，检测越严格
+            </p>
           </div>
-        )}
 
-        {previewData && (
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>预览结果 (前50行)</h4>
-              <button 
-                onClick={() => setPreviewData(null)} 
-                className="text-sm"
-                style={{ color: 'var(--color-text-secondary)' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-text)'}
-                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-secondary)'}
-              >
-                清除预览
-              </button>
+          {outlierInfo && (
+            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
+              <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>检测到异常值</h4>
+              <p className="text-sm" style={{ color: 'var(--color-text)' }}>
+                当前列 <strong>{selectedColumns[0]}</strong> 检测到 <strong style={{ color: 'var(--color-warning)' }}>{outlierInfo.indices.length}</strong> 个异常值
+              </p>
             </div>
-            <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-              <div className="overflow-auto scrollbar-thin" style={{ maxHeight: '300px' }}>
-                <table className="w-full border-collapse">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
-                      <th 
-                        className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider sticky left-0 z-20 w-12"
-                        style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
-                      >
-                        #
-                      </th>
-                      {columns.map((col) => (
-                        <th
-                          key={col}
-                          className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider"
-                          style={{
-                            color: col === selectedColumn ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                            backgroundColor: col === selectedColumn ? 'var(--color-surface)' : 'var(--color-surface-hover)',
-                            width: `${100 / columns.length}%`,
-                            maxWidth: '200px',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}
-                          title={col}
-                        >
-                          {col.length > 15 ? col.substring(0, 15) + '...' : col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
-                    {previewData.slice(0, 50).map((row, rowIndex) => (
-                      <tr
-                        key={rowIndex}
-                        className="transition-colors"
-                        style={{ backgroundColor: rowIndex % 2 === 0 ? 'var(--color-background)' : 'var(--color-surface)' }}
-                      >
-                        <td 
-                          className="px-3 py-2 text-xs font-mono sticky left-0 z-10"
-                          style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
-                        >
-                          {rowIndex + 1}
-                        </td>
-                        {columns.map((col) => {
-                          const isSelected = col === selectedColumn;
-                          return (
-                            <td
-                              key={col}
-                              className="px-3 py-2 text-xs"
-                              style={{ backgroundColor: isSelected ? 'var(--color-surface)' : 'transparent' }}
-                            >
-                              <span
-                                className="block truncate"
-                                style={{
-                                  color: row[col] === null || row[col] === undefined 
-                                    ? 'var(--color-text-tertiary)' 
-                                    : 'var(--color-text)',
-                                  fontStyle: row[col] === null || row[col] === undefined ? 'italic' : 'normal'
-                                }}
-                                title={String(row[col] ?? '-')}
-                              >
-                                {String(row[col] ?? '-')}
-                              </span>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          )}
+
+          <button onClick={handleRemoveOutliers} className="btn btn-secondary w-full" disabled={selectedColumns.length === 0}>
+            预览删除异常值
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'normalize' && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>归一化方法</label>
+            <div className="space-y-2">
+              {normalizeMethodOptions.map((option) => (
+                <label 
+                  key={option.value} 
+                  className="flex items-start space-x-3 cursor-pointer p-3 rounded-xl border transition-colors"
+                  style={{
+                    backgroundColor: normalizeMethod === option.value ? 'rgba(var(--color-primary-rgb, 94, 129, 172), 0.2)' : 'var(--color-surface-hover)',
+                    borderColor: normalizeMethod === option.value ? 'var(--color-accent)' : 'var(--color-border)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (normalizeMethod !== option.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (normalizeMethod !== option.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
+                    }
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="normalizeMethod"
+                    value={option.value}
+                    checked={normalizeMethod === option.value}
+                    onChange={() => setNormalizeMethod(option.value)}
+                    className="mt-1"
+                    style={{ accentColor: 'var(--color-primary)' }}
+                  />
+                  <div>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{option.label}</span>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{option.description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {columnStats && columnStats.min !== undefined && columnStats.max !== undefined && (
+            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
+              <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>当前列统计</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>最小值:</span>
+                  <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.min.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>最大值:</span>
+                  <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.max.toFixed(2)}</span>
+                </div>
+                {columnStats.mean !== undefined && (
+                  <div>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>均值:</span>
+                    <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.mean.toFixed(2)}</span>
+                  </div>
+                )}
+                {columnStats.median !== undefined && (
+                  <div>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>中位数:</span>
+                    <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.median.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
             </div>
-            <button onClick={handleApply} className="btn btn-primary w-full mt-3">
-              应用清洗结果
+          )}
+
+          {normalizeMethod === 'log' && columnStats && columnStats.min !== undefined && columnStats.min < 0 && (
+            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(var(--color-warning-rgb, 235, 203, 139), 0.2)', borderColor: 'var(--color-warning)' }}>
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--color-warning)' }} />
+                <p className="text-sm" style={{ color: 'var(--color-warning)' }}>
+                  对数变换仅适用于正数，负值将被跳过
+                </p>
+              </div>
+            </div>
+          )}
+
+          <button onClick={handleNormalize} className="btn btn-primary w-full" disabled={selectedColumns.length === 0}>
+            预览归一化结果
+          </button>
+        </div>
+      )}
+
+      {operationResult && (
+        <div 
+          className="p-4 rounded-xl flex items-center justify-between"
+          style={{ 
+            backgroundColor: operationResult.type === 'success' ? 'rgba(var(--color-success-rgb, 163, 190, 140), 0.2)' : 'rgba(var(--color-error-rgb, 191, 97, 106), 0.2)',
+            borderColor: operationResult.type === 'success' ? 'var(--color-success)' : 'var(--color-error)',
+            border: '1px solid'
+          }}
+        >
+          <div className="flex items-center space-x-2">
+            {operationResult.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
+            ) : (
+              <AlertTriangle className="w-5 h-5" style={{ color: 'var(--color-error)' }} />
+            )}
+            <span className="text-sm" style={{ color: 'var(--color-text)' }}>{operationResult.message}</span>
+          </div>
+          <button 
+            onClick={() => setOperationResult(null)}
+            className="p-1 rounded-lg hover:bg-black/10"
+          >
+            <X className="w-4 h-4" style={{ color: 'var(--color-text-secondary)' }} />
+          </button>
+        </div>
+      )}
+
+      {previewData && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>预览结果 (前50行)</h4>
+            <button 
+              onClick={() => setPreviewData(null)} 
+              className="text-sm"
+              style={{ color: 'var(--color-text-secondary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-text)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-secondary)'}
+            >
+              清除预览
             </button>
           </div>
-        )}
-      </div>
+          <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+            <div className="overflow-auto scrollbar-thin" style={{ maxHeight: '300px' }}>
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
+                    <th 
+                      className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider sticky left-0 z-20 w-12"
+                      style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
+                    >
+                      #
+                    </th>
+                    {columns.map((col) => (
+                      <th
+                        key={col}
+                        className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider"
+                        style={{
+                          color: selectedColumns.includes(col) ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                          backgroundColor: selectedColumns.includes(col) ? 'var(--color-surface)' : 'var(--color-surface-hover)',
+                          width: `${100 / columns.length}%`,
+                          maxWidth: '200px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                        title={col}
+                      >
+                        {col.length > 15 ? col.substring(0, 15) + '...' : col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
+                  {previewData.slice(0, 50).map((row, rowIndex) => (
+                    <tr
+                      key={rowIndex}
+                      className="transition-colors"
+                      style={{ backgroundColor: rowIndex % 2 === 0 ? 'var(--color-background)' : 'var(--color-surface)' }}
+                    >
+                      <td 
+                        className="px-3 py-2 text-xs font-mono sticky left-0 z-10"
+                        style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
+                      >
+                        {rowIndex + 1}
+                      </td>
+                      {columns.map((col) => {
+                        const isSelected = selectedColumns.includes(col);
+                        return (
+                          <td
+                            key={col}
+                            className="px-3 py-2 text-xs"
+                            style={{ backgroundColor: isSelected ? 'var(--color-surface)' : 'transparent' }}
+                          >
+                            <span
+                              className="block truncate"
+                              style={{
+                                color: row[col] === null || row[col] === undefined 
+                                  ? 'var(--color-text-tertiary)' 
+                                  : 'var(--color-text)',
+                                fontStyle: row[col] === null || row[col] === undefined ? 'italic' : 'normal'
+                              }}
+                              title={String(row[col] ?? '-')}
+                            >
+                              {String(row[col] ?? '-')}
+                            </span>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <button onClick={handleApply} className="btn btn-primary w-full mt-3">
+            应用清洗结果
+          </button>
+        </div>
+      )}
     </div>
   );
 };

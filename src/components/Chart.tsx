@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  Line, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis,
+  Area, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   PolarRadiusAxis, Brush, ComposedChart, Label,
 } from 'recharts';
 import { LineChart as LineIcon, BarChart2, ScatterChart as ScatterIcon, PieChart as PieIcon, Maximize2, X, Download, Loader2 } from 'lucide-react';
@@ -162,10 +162,6 @@ const Chart: React.FC<ChartProps> = ({
     setChartKey(prev => prev + 1);
     setHiddenSeries([]);
   }, [enableDualAxis, dualAxisKeys]);
-
-  useEffect(() => {
-    setChartKey(prev => prev + 1);
-  }, [hiddenSeries]);
 
   const chartType = onChartTypeChange ? externalChartType : internalChartType;
   
@@ -520,7 +516,7 @@ ${500 + imgData.length}
       case 'line':
         return (
           <ResponsiveContainer width="100%" height={height}>
-            <LineChart {...commonProps}>
+            <ComposedChart {...commonProps}>
               {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.colors.borderLight} />}
               {xAxisComponent}
               {yAxisComponent}
@@ -534,13 +530,13 @@ ${500 + imgData.length}
                 const yAxisId = getYAxisId(key, index);
                 return <Line key={key} yAxisId={yAxisId} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} strokeOpacity={opacity} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: dotSize, opacity } : false} activeDot={{ r: dotSize + 2, strokeWidth: 0, fill: config.color, opacity }} />;
               })}
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         );
       case 'bar':
         return (
           <ResponsiveContainer width="100%" height={height}>
-            <BarChart {...commonProps}>
+            <ComposedChart {...commonProps}>
               {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.colors.borderLight} />}
               {xAxisComponent}
               {yAxisComponent}
@@ -554,13 +550,13 @@ ${500 + imgData.length}
                 const yAxisId = getYAxisId(key, index);
                 return <Bar key={key} yAxisId={yAxisId} dataKey={key} name={key} fill={config.color} opacity={opacity} radius={[6, 6, 0, 0]} />;
               })}
-            </BarChart>
+            </ComposedChart>
           </ResponsiveContainer>
         );
       case 'area':
         return (
           <ResponsiveContainer width="100%" height={height}>
-            <AreaChart {...commonProps}>
+            <ComposedChart {...commonProps}>
               {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.colors.borderLight} />}
               {xAxisComponent}
               {yAxisComponent}
@@ -574,7 +570,7 @@ ${500 + imgData.length}
                 const yAxisId = getYAxisId(key, index);
                 return <Area key={key} yAxisId={yAxisId} type="monotone" dataKey={key} name={key} fill={config.color} stroke={config.color} fillOpacity={opacity * 0.5} />;
               })}
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         );
       case 'scatter':
