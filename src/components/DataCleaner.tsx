@@ -148,29 +148,43 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
 
   return (
     <div className={`card overflow-hidden ${className}`}>
-      <div className="px-6 py-4 border-b border-[#D8DEE9]">
+      <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-[#A3BE8C] to-[#8FBCBB] shadow-lg shadow-[#A3BE8C]/20">
+          <div 
+            className="p-2 rounded-xl"
+            style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-md)' }}
+          >
             <Eraser className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-[#2E3440]">数据清洗</h2>
-            <p className="text-xs text-[#4C566A]">处理空值、格式转换、去重</p>
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>数据清洗</h2>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>处理空值、格式转换、去重</p>
           </div>
         </div>
       </div>
 
-      <div className="border-b border-[#D8DEE9]">
+      <div className="border-b" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => { setActiveTab(tab.id); setPreviewData(null); setOperationResult(null); }}
-              className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                activeTab === tab.id
-                  ? 'text-[#5E81AC] border-[#5E81AC] bg-[#ECEFF4]'
-                  : 'text-[#4C566A] border-transparent hover:text-[#2E3440] hover:bg-[#E5E9F0]'
-              }`}
+              className="flex items-center space-x-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2"
+              style={{
+                color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                borderColor: activeTab === tab.id ? 'var(--color-primary)' : 'transparent',
+                backgroundColor: activeTab === tab.id ? 'var(--color-surface)' : 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
             >
               {tab.icon}
               <span>{tab.label}</span>
@@ -181,7 +195,7 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
 
       <div className="p-6">
         <div className="mb-4">
-          <label className="block text-sm font-medium text-[#3B4252] mb-2">选择列</label>
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>选择列</label>
           <select
             value={selectedColumn}
             onChange={(e) => { setSelectedColumn(e.target.value); setPreviewData(null); setOperationResult(null); }}
@@ -194,27 +208,27 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
         </div>
 
         {columnStats && (
-          <div className="mb-4 p-4 bg-[#E5E9F0] rounded-xl">
-            <h4 className="text-sm font-medium text-[#3B4252] mb-2">列统计</h4>
+          <div className="mb-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--color-surface-hover)' }}>
+            <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>列统计</h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div>
-                <span className="text-[#4C566A]">空值:</span>
-                <span className="ml-1 font-medium text-[#BF616A]">{columnStats.nullCount}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>空值:</span>
+                <span className="ml-1 font-medium" style={{ color: 'var(--color-error)' }}>{columnStats.nullCount}</span>
               </div>
               <div>
-                <span className="text-[#4C566A]">唯一值:</span>
-                <span className="ml-1 font-medium text-[#3B4252]">{columnStats.uniqueCount}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>唯一值:</span>
+                <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.uniqueCount}</span>
               </div>
               {columnStats.min !== undefined && (
                 <div>
-                  <span className="text-[#4C566A]">最小值:</span>
-                  <span className="ml-1 font-medium text-[#3B4252]">{columnStats.min?.toFixed(2)}</span>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>最小值:</span>
+                  <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.min?.toFixed(2)}</span>
                 </div>
               )}
               {columnStats.max !== undefined && (
                 <div>
-                  <span className="text-[#4C566A]">最大值:</span>
-                  <span className="ml-1 font-medium text-[#3B4252]">{columnStats.max?.toFixed(2)}</span>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>最大值:</span>
+                  <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.max?.toFixed(2)}</span>
                 </div>
               )}
             </div>
@@ -224,17 +238,28 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
         {activeTab === 'fillNull' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#3B4252] mb-2">填充方式</label>
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>填充方式</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {fillMethodOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => setFillMethod(option.value)}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-sm transition-colors ${
-                      fillMethod === option.value
-                        ? 'bg-[#5E81AC]/20 text-[#5E81AC] border-2 border-[#81A1C1]'
-                        : 'bg-[#E5E9F0] text-[#4C566A] border-2 border-transparent hover:bg-[#ECEFF4]'
-                    }`}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-xl text-sm transition-colors border-2"
+                    style={{
+                      backgroundColor: fillMethod === option.value ? 'rgba(var(--color-primary-rgb, 94, 129, 172), 0.2)' : 'var(--color-surface-hover)',
+                      color: fillMethod === option.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                      borderColor: fillMethod === option.value ? 'var(--color-accent)' : 'transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (fillMethod !== option.value) {
+                        e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (fillMethod !== option.value) {
+                        e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
+                      }
+                    }}
                   >
                     {option.icon}
                     <span>{option.label}</span>
@@ -245,7 +270,7 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
 
             {fillMethod === 'custom' && (
               <div>
-                <label className="block text-sm font-medium text-[#3B4252] mb-2">自定义值</label>
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>自定义值</label>
                 <input
                   type="text"
                   value={customValue}
@@ -264,16 +289,16 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
 
         {activeTab === 'removeNull' && (
           <div className="space-y-4">
-            <div className="p-4 bg-[#EBCB8B]/20 rounded-xl border border-[#D08770]">
+            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(var(--color-warning-rgb, 235, 203, 139), 0.2)', borderColor: 'var(--color-warning)' }}>
               <div className="flex items-start space-x-3">
-                <AlertTriangle className="w-5 h-5 text-[#D08770] flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--color-warning)' }} />
                 <div>
-                  <h4 className="text-sm font-medium text-[#D08770]">删除空值行</h4>
-                  <p className="text-sm text-[#D08770] mt-1">
+                  <h4 className="text-sm font-medium" style={{ color: 'var(--color-warning)' }}>删除空值行</h4>
+                  <p className="text-sm mt-1" style={{ color: 'var(--color-warning)' }}>
                     将删除 "{selectedColumn}" 列中所有包含空值的行
                   </p>
                   {columnStats && (
-                    <p className="text-sm text-[#D08770] mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'var(--color-warning)' }}>
                       预计删除: <span className="font-bold">{columnStats.nullCount}</span> 行
                     </p>
                   )}
@@ -290,7 +315,7 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
         {activeTab === 'convert' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#3B4252] mb-2">转换类型</label>
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>转换类型</label>
               <select
                 value={conversionType}
                 onChange={(e) => setConversionType(e.target.value as ConversionType)}
@@ -310,9 +335,9 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
 
         {activeTab === 'deduplicate' && (
           <div className="space-y-4">
-            <div className="p-4 bg-[#81A1C1]/20 rounded-xl border border-[#5E81AC]">
-              <h4 className="text-sm font-medium text-[#5E81AC]">全行去重</h4>
-              <p className="text-sm text-[#5E81AC] mt-1">
+            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(var(--color-primary-rgb, 129, 161, 193), 0.2)', borderColor: 'var(--color-primary)' }}>
+              <h4 className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>全行去重</h4>
+              <p className="text-sm mt-1" style={{ color: 'var(--color-primary)' }}>
                 将删除所有完全相同的行，保留第一次出现的行
               </p>
             </div>
@@ -326,7 +351,7 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
         {activeTab === 'outliers' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#3B4252] mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
                 异常值阈值 (IQR倍数): {outlierThreshold}
               </label>
               <input
@@ -336,20 +361,21 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
                 step="0.1"
                 value={outlierThreshold}
                 onChange={(e) => setOutlierThreshold(parseFloat(e.target.value))}
-                className="w-full h-2 bg-[#D8DEE9] rounded-lg appearance-none cursor-pointer accent-[#5E81AC]"
+                className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                style={{ backgroundColor: 'var(--color-border)', accentColor: 'var(--color-primary)' }}
               />
-              <p className="text-xs text-[#4C566A] mt-1">
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
                 较小的值会识别更多异常值
               </p>
             </div>
 
             {outlierInfo && outlierInfo.indices.length > 0 && (
-              <div className="p-4 bg-[#EBCB8B]/20 rounded-xl border border-[#D08770]">
-                <h4 className="text-sm font-medium text-[#D08770]">检测到异常值</h4>
-                <p className="text-sm text-[#D08770] mt-1">
+              <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(var(--color-warning-rgb, 235, 203, 139), 0.2)', borderColor: 'var(--color-warning)' }}>
+                <h4 className="text-sm font-medium" style={{ color: 'var(--color-warning)' }}>检测到异常值</h4>
+                <p className="text-sm mt-1" style={{ color: 'var(--color-warning)' }}>
                   发现 <span className="font-bold">{outlierInfo.indices.length}</span> 个异常值
                 </p>
-                <p className="text-xs text-[#D08770] mt-1">
+                <p className="text-xs mt-1" style={{ color: 'var(--color-warning)' }}>
                   正常范围: [{outlierInfo.lowerBound.toFixed(2)}, {outlierInfo.upperBound.toFixed(2)}]
                 </p>
               </div>
@@ -362,18 +388,23 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
         )}
 
         {operationResult && (
-          <div className={`mt-4 p-4 rounded-xl ${
-            operationResult.type === 'success' ? 'bg-[#A3BE8C]/20 border border-[#A3BE8C]' : 'bg-[#BF616A]/20 border border-[#BF616A]'
-          }`}>
+          <div 
+            className="mt-4 p-4 rounded-xl border"
+            style={{ 
+              backgroundColor: operationResult.type === 'success' ? 'rgba(var(--color-success-rgb, 163, 190, 140), 0.2)' : 'rgba(var(--color-error-rgb, 191, 97, 106), 0.2)',
+              borderColor: operationResult.type === 'success' ? 'var(--color-success)' : 'var(--color-error)'
+            }}
+          >
             <div className="flex items-center space-x-2">
               {operationResult.type === 'success' ? (
-                <CheckCircle className="w-5 h-5 text-[#A3BE8C]" />
+                <CheckCircle className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
               ) : (
-                <X className="w-5 h-5 text-[#BF616A]" />
+                <X className="w-5 h-5" style={{ color: 'var(--color-error)' }} />
               )}
-              <span className={`text-sm font-medium ${
-                operationResult.type === 'success' ? 'text-[#A3BE8C]' : 'text-[#BF616A]'
-              }`}>
+              <span 
+                className="text-sm font-medium"
+                style={{ color: operationResult.type === 'success' ? 'var(--color-success)' : 'var(--color-error)' }}
+              >
                 {operationResult.message}
               </span>
             </div>
@@ -383,27 +414,33 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
         {previewData && (
           <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-[#3B4252]">预览结果 (前50行)</h4>
-              <button onClick={() => setPreviewData(null)} className="text-sm text-[#4C566A] hover:text-[#2E3440]">
+              <h4 className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>预览结果 (前50行)</h4>
+              <button 
+                onClick={() => setPreviewData(null)} 
+                className="text-sm"
+                style={{ color: 'var(--color-text-secondary)' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-text)'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-secondary)'}
+              >
                 清除预览
               </button>
             </div>
-            <div className="max-h-60 overflow-auto rounded-xl border border-[#D8DEE9]">
+            <div className="max-h-60 overflow-auto rounded-xl border" style={{ borderColor: 'var(--color-border)' }}>
               <table className="min-w-full text-xs">
-                <thead className="bg-[#E5E9F0] sticky top-0">
+                <thead className="sticky top-0" style={{ backgroundColor: 'var(--color-surface-hover)' }}>
                   <tr>
                     {columns.slice(0, 5).map((col) => (
-                      <th key={col} className="px-3 py-2 text-left font-medium text-[#4C566A]">
+                      <th key={col} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--color-text-secondary)' }}>
                         {col}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E5E9F0]">
+                <tbody className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
                   {previewData.slice(0, 20).map((row, i) => (
                     <tr key={i}>
                       {columns.slice(0, 5).map((col) => (
-                        <td key={col} className="px-3 py-2 text-[#3B4252]">
+                        <td key={col} className="px-3 py-2" style={{ color: 'var(--color-text)' }}>
                           {String(row[col] ?? '-')}
                         </td>
                       ))}

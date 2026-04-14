@@ -164,7 +164,7 @@ const DataFilter: React.FC<DataFilterProps> = ({
               className="input w-24"
               placeholder="最小值"
             />
-            <span className="text-[#4C566A]">-</span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>-</span>
             <input
               type="number"
               value={rangeValue[1]}
@@ -207,28 +207,32 @@ const DataFilter: React.FC<DataFilterProps> = ({
   return (
     <div className={`card overflow-hidden ${className}`}>
       <div 
-        className="px-6 py-4 border-b border-[#D8DEE9] cursor-pointer flex items-center justify-between"
+        className="px-6 py-4 border-b cursor-pointer flex items-center justify-between"
+        style={{ borderColor: 'var(--color-border)' }}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-[#5E81AC] to-[#81A1C1] shadow-lg shadow-[#5E81AC]/20">
+          <div 
+            className="p-2 rounded-xl"
+            style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-md)' }}
+          >
             <Filter className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-[#2E3440]">数据筛选</h2>
-            <p className="text-xs text-[#4C566A]">{filterSummary}</p>
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>数据筛选</h2>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{filterSummary}</p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
           {groups.length > 0 && (
-            <span className="text-sm text-[#5E81AC] font-medium">
+            <span className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
               {filteredData.length} / {data.length} 行
             </span>
           )}
           {isExpanded ? (
-            <ChevronUp className="w-5 h-5 text-[#4C566A]" />
+            <ChevronUp className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
           ) : (
-            <ChevronDown className="w-5 h-5 text-[#4C566A]" />
+            <ChevronDown className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
           )}
         </div>
       </div>
@@ -237,8 +241,8 @@ const DataFilter: React.FC<DataFilterProps> = ({
         <div className="p-6">
           {groups.length === 0 ? (
             <div className="text-center py-8">
-              <Filter className="w-12 h-12 text-[#D8DEE9] mx-auto mb-3" />
-              <p className="text-[#4C566A] mb-4">暂无筛选条件</p>
+              <Filter className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--color-border)' }} />
+              <p className="mb-4" style={{ color: 'var(--color-text-secondary)' }}>暂无筛选条件</p>
               <button onClick={addGroup} className="btn btn-primary">
                 <Plus className="w-4 h-4" />
                 <span>添加筛选组</span>
@@ -249,41 +253,44 @@ const DataFilter: React.FC<DataFilterProps> = ({
               {groups.map((group, groupIndex) => (
                 <div 
                   key={group.id} 
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    group.enabled 
-                      ? 'border-[#81A1C1] bg-[#ECEFF4]' 
-                      : 'border-[#D8DEE9] bg-[#F5F7FA]'
-                  }`}
+                  className="p-4 rounded-xl border-2 transition-all"
+                  style={{
+                    borderColor: group.enabled ? 'var(--color-primary)' : 'var(--color-border)',
+                    backgroundColor: group.enabled ? 'var(--color-surface)' : 'var(--color-surface-hover)'
+                  }}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
                       <button
                         onClick={() => toggleGroup(group.id)}
-                        className={`w-4 h-4 rounded-full border-2 transition-colors ${
-                          group.enabled 
-                            ? 'bg-[#5E81AC] border-[#5E81AC]' 
-                            : 'border-[#D8DEE9]'
-                        }`}
+                        className="w-4 h-4 rounded-full border-2 transition-colors"
+                        style={{
+                          backgroundColor: group.enabled ? 'var(--color-primary)' : 'transparent',
+                          borderColor: group.enabled ? 'var(--color-primary)' : 'var(--color-border)'
+                        }}
                       />
-                      <span className="text-sm font-medium text-[#3B4252]">
+                      <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
                         筛选组 {groupIndex + 1}
                       </span>
                       <button
                         onClick={() => toggleGroupLogic(group.id)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          group.logic === 'AND'
-                            ? 'bg-[#5E81AC]/20 text-[#5E81AC]'
-                            : 'bg-[#D08770]/20 text-[#D08770]'
-                        }`}
+                        className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
+                        style={{
+                          backgroundColor: group.logic === 'AND' ? 'rgba(var(--color-primary-rgb, 94, 129, 172), 0.2)' : 'rgba(var(--color-warning-rgb, 208, 135, 112), 0.2)',
+                          color: group.logic === 'AND' ? 'var(--color-primary)' : 'var(--color-warning)'
+                        }}
                       >
                         {group.logic === 'AND' ? '且 (AND)' : '或 (OR)'}
                       </button>
                     </div>
                     <button
                       onClick={() => removeGroup(group.id)}
-                      className="p-1 hover:bg-[#BF616A]/20 rounded-lg transition-colors"
+                      className="p-1 rounded-lg transition-colors"
+                      style={{ backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(var(--color-error-rgb, 191, 97, 106), 0.2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <Trash2 className="w-4 h-4 text-[#BF616A]" />
+                      <Trash2 className="w-4 h-4" style={{ color: 'var(--color-error)' }} />
                     </button>
                   </div>
 
@@ -295,17 +302,16 @@ const DataFilter: React.FC<DataFilterProps> = ({
                       return (
                         <div 
                           key={condition.id}
-                          className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${
-                            condition.enabled ? 'bg-white' : 'bg-[#E5E9F0]'
-                          }`}
+                          className="flex items-center space-x-2 p-2 rounded-lg transition-colors"
+                          style={{ backgroundColor: condition.enabled ? 'var(--color-background)' : 'var(--color-surface-hover)' }}
                         >
                           <button
                             onClick={() => toggleCondition(group.id, condition.id)}
-                            className={`w-4 h-4 rounded border-2 transition-colors ${
-                              condition.enabled 
-                                ? 'bg-[#5E81AC] border-[#5E81AC]' 
-                                : 'border-[#D8DEE9]'
-                            }`}
+                            className="w-4 h-4 rounded border-2 transition-colors"
+                            style={{
+                              backgroundColor: condition.enabled ? 'var(--color-primary)' : 'transparent',
+                              borderColor: condition.enabled ? 'var(--color-primary)' : 'var(--color-border)'
+                            }}
                           />
                           
                           <select
@@ -336,9 +342,12 @@ const DataFilter: React.FC<DataFilterProps> = ({
 
                           <button
                             onClick={() => removeCondition(group.id, condition.id)}
-                            className="p-1 hover:bg-[#BF616A]/20 rounded-lg transition-colors"
+                            className="p-1 rounded-lg transition-colors"
+                            style={{ backgroundColor: 'transparent' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(var(--color-error-rgb, 191, 97, 106), 0.2)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                           >
-                            <X className="w-4 h-4 text-[#BF616A]" />
+                            <X className="w-4 h-4" style={{ color: 'var(--color-error)' }} />
                           </button>
                         </div>
                       );
@@ -347,7 +356,10 @@ const DataFilter: React.FC<DataFilterProps> = ({
 
                   <button
                     onClick={() => addCondition(group.id)}
-                    className="mt-3 flex items-center space-x-1 text-sm text-[#5E81AC] hover:text-[#81A1C1] transition-colors"
+                    className="mt-3 flex items-center space-x-1 text-sm transition-colors"
+                    style={{ color: 'var(--color-primary)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-accent)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
                   >
                     <Plus className="w-4 h-4" />
                     <span>添加条件</span>
@@ -355,7 +367,7 @@ const DataFilter: React.FC<DataFilterProps> = ({
                 </div>
               ))}
 
-              <div className="flex items-center justify-between pt-4 border-t border-[#D8DEE9]">
+              <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
                 <button onClick={addGroup} className="btn btn-secondary">
                   <Plus className="w-4 h-4" />
                   <span>添加筛选组</span>

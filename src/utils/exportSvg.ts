@@ -1,3 +1,5 @@
+import jsPDF from 'jspdf';
+
 export interface ExportOptions {
   fileName?: string;
   title?: string;
@@ -30,6 +32,7 @@ export function exportChartAsSvg(
   clonedSvg.setAttribute('width', String(width));
   clonedSvg.setAttribute('height', String(height));
   clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   
   inlineStyles(clonedSvg);
   
@@ -89,6 +92,7 @@ export function exportChartAsPng(
   clonedSvg.setAttribute('width', String(width));
   clonedSvg.setAttribute('height', String(height));
   clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   
   inlineStyles(clonedSvg);
   
@@ -166,16 +170,17 @@ export function exportChartAsPdf(
   const bbox = svgElement.getBoundingClientRect();
   const width = options.width || bbox.width;
   const height = options.height || bbox.height;
+  const scale = 2;
   
   clonedSvg.setAttribute('width', String(width));
   clonedSvg.setAttribute('height', String(height));
   clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   
   inlineStyles(clonedSvg);
   
   const svgData = new XMLSerializer().serializeToString(clonedSvg);
   const canvas = document.createElement('canvas');
-  const scale = 2;
   canvas.width = width * scale;
   canvas.height = height * scale;
   const ctx = canvas.getContext('2d');
@@ -191,64 +196,21 @@ export function exportChartAsPdf(
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0);
     
-    const pdfContent = generateSimplePdf(canvas);
+    const imgData = canvas.toDataURL('image/png', 1.0);
     
-    const blob = new Blob([pdfContent], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = options.fileName?.replace('.svg', '.pdf') || 'chart.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const orientation = width > height ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({
+      orientation: orientation,
+      unit: 'px',
+      format: [width, height]
+    });
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+    
+    pdf.save(options.fileName?.replace(/\.(svg|png)$/, '.pdf') || 'chart.pdf');
   };
   
   img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-}
-
-function generateSimplePdf(canvas: HTMLCanvasElement): string {
-  const imgData = canvas.toDataURL('image/png', 1.0);
-  const width = canvas.width / 2;
-  const height = canvas.height / 2;
-  
-  const pdfHeader = `%PDF-1.4
-1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
-endobj
-2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
-endobj
-3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Contents 4 0 R /Resources << /XObject << /Img0 5 0 R >> >> >>
-endobj
-4 0 obj
-<< /Length 44 >>
-stream
-q ${width} 0 0 ${height} 0 0 cm /Img0 Do Q
-endstream
-endobj
-5 0 obj
-<< /Type /XObject /Subtype /Image /Width ${canvas.width} /Height ${canvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgData.length} >>
-stream
-${imgData}
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n
-0000000058 00000 n
-0000000115 00000 n
-0000000266 00000 n
-0000000359 00000 n
-trailer
-<< /Size 6 /Root 1 0 R >>
-startxref
-${500 + imgData.length}
-%%EOF`;
-  
-  return pdfHeader;
 }
 
 function inlineStyles(element: SVGElement): void {

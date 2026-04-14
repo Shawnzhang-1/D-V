@@ -65,15 +65,15 @@ const DataPreview: React.FC<DataPreviewProps> = ({
   const getTypeStyle = (type: string) => {
     switch (type) {
       case 'number':
-        return { bg: 'bg-[#88C0D0]/30', text: 'text-[#5E81AC]', border: 'border-[#88C0D0]' };
+        return { bg: 'rgba(var(--color-primary-rgb, 0, 113, 227), 0.15)', color: 'var(--color-primary)' };
       case 'string':
-        return { bg: 'bg-[#A3BE8C]/30', text: 'text-[#A3BE8C]', border: 'border-[#A3BE8C]' };
+        return { bg: 'rgba(var(--color-success-rgb, 52, 199, 89), 0.15)', color: 'var(--color-success)' };
       case 'boolean':
-        return { bg: 'bg-[#B48EAD]/30', text: 'text-[#B48EAD]', border: 'border-[#B48EAD]' };
+        return { bg: 'rgba(var(--color-warning-rgb, 255, 149, 0), 0.15)', color: 'var(--color-warning)' };
       case 'date':
-        return { bg: 'bg-[#EBCB8B]/30', text: 'text-[#D08770]', border: 'border-[#EBCB8B]' };
+        return { bg: 'rgba(var(--color-accent-rgb, 0, 113, 227), 0.15)', color: 'var(--color-accent)' };
       default:
-        return { bg: 'bg-[#D8DEE9]', text: 'text-[#4C566A]', border: 'border-[#D8DEE9]' };
+        return { bg: 'var(--color-surface-hover)', color: 'var(--color-text-secondary)' };
     }
   };
 
@@ -95,18 +95,21 @@ const DataPreview: React.FC<DataPreviewProps> = ({
 
   return (
     <div className={`card overflow-hidden ${className}`}>
-      <div className="px-6 py-4 border-b border-[#D8DEE9]">
+      <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-[#A3BE8C] to-[#8FBCBB] shadow-lg shadow-[#A3BE8C]/20">
+            <div 
+              className="p-2 rounded-xl"
+              style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-md)' }}
+            >
               <Table className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-[#2E3440]">数据预览</h2>
-              <p className="text-xs text-[#4C566A]">原始数据表格</p>
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>数据预览</h2>
+              <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>原始数据表格</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2 text-[#4C566A] text-sm">
+          <div className="flex items-center space-x-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             <Info className="w-4 h-4" />
             <span>显示前 {previewData.length} 行 / 共 {data.totalCount.toLocaleString()} 行</span>
           </div>
@@ -115,7 +118,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
 
       <div className="p-4">
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-[#3B4252] mb-3">列类型统计</h3>
+          <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--color-text)' }}>列类型统计</h3>
           <div className="flex flex-wrap gap-2">
             {columnStats.map((stat) => {
               const isSelected = selectedColumns.includes(stat.name);
@@ -124,16 +127,19 @@ const DataPreview: React.FC<DataPreviewProps> = ({
                 <button
                   key={stat.name}
                   onClick={() => handleColumnToggle(stat.name)}
-                  className={`
-                    flex items-center space-x-2 px-3 py-1.5 rounded-xl border transition-all duration-300 text-sm
-                    ${isSelected
-                      ? 'border-[#5E81AC] bg-[#ECEFF4] text-[#5E81AC] shadow-lg shadow-[#5E81AC]/10'
-                      : 'border-[#D8DEE9] bg-white text-[#4C566A] hover:border-[#81A1C1] hover:bg-[#ECEFF4]'
-                    }
-                  `}
+                  className="flex items-center space-x-2 px-3 py-1.5 rounded-xl border transition-all duration-300 text-sm"
+                  style={{
+                    borderColor: isSelected ? 'var(--color-primary)' : 'var(--color-border)',
+                    backgroundColor: isSelected ? 'var(--color-surface)' : 'var(--color-background)',
+                    color: isSelected ? 'var(--color-primary)' : 'var(--color-text)',
+                    boxShadow: isSelected ? 'var(--shadow-md)' : 'none'
+                  }}
                 >
                   <span className="font-medium">{stat.name}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${typeStyle.bg} ${typeStyle.text}`}>
+                  <span 
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: typeStyle.bg, color: typeStyle.color }}
+                  >
                     {getTypeLabel(stat.type)}
                   </span>
                 </button>
@@ -142,35 +148,42 @@ const DataPreview: React.FC<DataPreviewProps> = ({
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#D8DEE9] overflow-hidden bg-white">
+        <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="border-b border-[#D8DEE9]">
-                  <th className="px-3 py-2 text-left text-xs font-medium text-[#4C566A] uppercase tracking-wider bg-[#E5E9F0] sticky left-0 z-10 w-12">
+                <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
+                  <th 
+                    className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider sticky left-0 z-10 w-12"
+                    style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
+                  >
                     #
                   </th>
                   {data.headers.map((header) => (
                     <th
                       key={header}
-                      className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                        selectedColumns.includes(header)
-                          ? 'bg-[#ECEFF4] text-[#5E81AC]'
-                          : 'bg-[#E5E9F0] text-[#4C566A]'
-                      }`}
+                      className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap"
+                      style={{
+                        color: selectedColumns.includes(header) ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                        backgroundColor: selectedColumns.includes(header) ? 'var(--color-surface)' : 'var(--color-surface-hover)'
+                      }}
                     >
                       {header}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E5E9F0]">
+              <tbody className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
                 {previewData.map((row, rowIndex) => (
                   <tr
                     key={rowIndex}
-                    className={`transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#F5F7FA]'}`}
+                    className="transition-colors"
+                    style={{ backgroundColor: rowIndex % 2 === 0 ? 'var(--color-background)' : 'var(--color-surface)' }}
                   >
-                    <td className="px-3 py-2 text-xs text-[#4C566A] font-mono bg-[#E5E9F0] sticky left-0">
+                    <td 
+                      className="px-3 py-2 text-xs font-mono sticky left-0"
+                      style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
+                    >
                       {rowIndex + 1}
                     </td>
                     {data.headers.map((header) => {
@@ -178,14 +191,17 @@ const DataPreview: React.FC<DataPreviewProps> = ({
                       return (
                         <td
                           key={header}
-                          className={`px-3 py-2 text-xs whitespace-nowrap ${isSelected ? 'bg-[#ECEFF4]/50' : ''}`}
+                          className="px-3 py-2 text-xs whitespace-nowrap"
+                          style={{ backgroundColor: isSelected ? 'var(--color-surface)' : 'transparent' }}
                         >
                           <span
-                            className={`block truncate max-w-[150px] ${
-                              row[header] === null || row[header] === undefined
-                                ? 'text-[#D8DEE9] italic'
-                                : 'text-[#3B4252]'
-                            }`}
+                            className="block truncate max-w-[150px]"
+                            style={{
+                              color: row[header] === null || row[header] === undefined 
+                                ? 'var(--color-text-tertiary)' 
+                                : 'var(--color-text)',
+                              fontStyle: row[header] === null || row[header] === undefined ? 'italic' : 'normal'
+                            }}
                             title={formatCellValue(row[header])}
                           >
                             {formatCellValue(row[header])}
@@ -201,7 +217,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
         </div>
 
         {data.data.length > maxPreviewRows && (
-          <div className="mt-3 text-center text-xs text-[#4C566A]">
+          <div className="mt-3 text-center text-xs" style={{ color: 'var(--color-text-secondary)' }}>
             还有 {(data.data.length - maxPreviewRows).toLocaleString()} 行数据未显示
           </div>
         )}

@@ -6,6 +6,9 @@ import DataFilter from './components/DataFilter';
 import DataCleaner from './components/DataCleaner';
 import Chart from './components/Chart';
 import ChartConfigPanel, { ChartConfig, DEFAULT_CONFIG } from './components/ChartConfig';
+import MultiSelect from './components/MultiSelect';
+import ThemeSwitcher from './components/ThemeSwitcher';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { parseFile, previewFile, ParsedData, sampleDataByRange } from './utils/fileParser';
 import { analyzeAllColumns, ColumnMeta } from './utils/dataFilter';
 import { exportChartAsSvg, exportChartAsPng, exportChartAsPdf } from './utils/exportSvg';
@@ -237,69 +240,83 @@ function App() {
   ];
 
   return (
+    <ThemeProvider>
     <div className="min-h-screen relative">
-      <header className="sticky top-0 z-50 bg-[#ECEFF4]/90 backdrop-blur-xl border-b border-[#D8DEE9]">
+      <header className="sticky top-0 z-50 backdrop-blur-xl border-b" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-[#5E81AC] to-[#81A1C1] shadow-lg shadow-[#5E81AC]/20">
+              <div className="p-2 rounded-xl shadow-lg" style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-lg)' }}>
                 <BarChart2 className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#2E3440]">
+                <h1 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>
                   数据可视化
                 </h1>
-                <p className="text-xs text-[#4C566A]">Data Visualization</p>
+                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>Data Visualization</p>
               </div>
             </div>
             
-            {parsedData && (
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleExportData}
-                  className="btn btn-secondary"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>导出数据</span>
-                </button>
-                <div className="relative group">
-                  <button className="btn btn-primary">
+            <div className="flex items-center space-x-3">
+              <ThemeSwitcher />
+              
+              {parsedData && (
+                <>
+                  <button
+                    onClick={handleExportData}
+                    className="btn btn-secondary"
+                  >
                     <Download className="w-4 h-4" />
-                    <span>导出图表</span>
+                    <span>导出数据</span>
                   </button>
-                  <div className="absolute right-0 top-full mt-1 py-2 bg-white rounded-xl shadow-xl border border-[#D8DEE9] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 min-w-[160px]">
-                    <button
-                      onClick={() => exportChartAsSvg({ fileName: 'chart.svg', title: chartConfig.title })}
-                      className="w-full px-4 py-2 text-left text-sm text-[#3B4252] hover:bg-[#ECEFF4] hover:text-[#5E81AC] flex items-center space-x-2"
-                    >
-                      <FileImage className="w-4 h-4" />
-                      <span>SVG 矢量图</span>
+                  <div className="relative group">
+                    <button className="btn btn-primary">
+                      <Download className="w-4 h-4" />
+                      <span>导出图表</span>
                     </button>
-                    <button
-                      onClick={() => exportChartAsPng({ fileName: 'chart.png', title: chartConfig.title, quality: 2 })}
-                      className="w-full px-4 py-2 text-left text-sm text-[#3B4252] hover:bg-[#ECEFF4] hover:text-[#5E81AC] flex items-center space-x-2"
-                    >
-                      <Image className="w-4 h-4" />
-                      <span>PNG 图片</span>
-                    </button>
-                    <button
-                      onClick={() => exportChartAsPdf({ fileName: 'chart.pdf', title: chartConfig.title })}
-                      className="w-full px-4 py-2 text-left text-sm text-[#3B4252] hover:bg-[#ECEFF4] hover:text-[#5E81AC] flex items-center space-x-2"
-                    >
-                      <FileText className="w-4 h-4" />
-                      <span>PDF 文档</span>
-                    </button>
+                    <div className="absolute right-0 top-full mt-1 py-2 rounded-xl shadow-xl border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 min-w-[160px]" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+                      <button
+                        onClick={() => exportChartAsSvg({ fileName: 'chart.svg', title: chartConfig.title })}
+                        className="w-full px-4 py-2 text-left text-sm flex items-center space-x-2"
+                        style={{ color: 'var(--color-text)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)'; e.currentTarget.style.color = 'var(--color-primary)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--color-text)'; }}
+                      >
+                        <FileImage className="w-4 h-4" />
+                        <span>SVG 矢量图</span>
+                      </button>
+                      <button
+                        onClick={() => exportChartAsPng({ fileName: 'chart.png', title: chartConfig.title, quality: 2 })}
+                        className="w-full px-4 py-2 text-left text-sm flex items-center space-x-2"
+                        style={{ color: 'var(--color-text)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)'; e.currentTarget.style.color = 'var(--color-primary)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--color-text)'; }}
+                      >
+                        <Image className="w-4 h-4" />
+                        <span>PNG 图片</span>
+                      </button>
+                      <button
+                        onClick={() => exportChartAsPdf({ fileName: 'chart.pdf', title: chartConfig.title })}
+                        className="w-full px-4 py-2 text-left text-sm flex items-center space-x-2"
+                        style={{ color: 'var(--color-text)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)'; e.currentTarget.style.color = 'var(--color-primary)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--color-text)'; }}
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>PDF 文档</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <button
-                  onClick={handleReset}
-                  className="btn btn-ghost"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>重置</span>
-                </button>
-              </div>
-            )}
+                  <button
+                    onClick={handleReset}
+                    className="btn btn-ghost"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>重置</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -310,12 +327,15 @@ function App() {
             {showPreview && previewState ? (
               <div className="card p-6 animate-fade-in">
                 <div className="flex items-center space-x-4 mb-6">
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-[#5E81AC] to-[#81A1C1] shadow-lg shadow-[#5E81AC]/20">
+                  <div 
+                    className="p-3 rounded-xl"
+                    style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-lg)' }}
+                  >
                     <Eye className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-[#2E3440]">文件预览 - 选择列名行</h2>
-                    <p className="text-[#4C566A]">预览前 {previewState.rows.length} 行，确认列名所在行后点击确认解析</p>
+                    <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>文件预览 - 选择列名行</h2>
+                    <p style={{ color: 'var(--color-text-secondary)' }}>预览前 {previewState.rows.length} 行，确认列名所在行后点击确认解析</p>
                   </div>
                   <button
                     onClick={() => { setShowPreview(false); setPreviewState(null); }}
@@ -325,9 +345,9 @@ function App() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gradient-to-r from-[#ECEFF4] to-[#E5E9F0] rounded-xl">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 rounded-xl" style={{ backgroundColor: 'var(--color-surface-hover)' }}>
                   <div>
-                    <label className="block text-sm font-medium text-[#3B4252] mb-2">列名所在行</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>列名所在行</label>
                     <input
                       type="number"
                       min="1"
@@ -336,10 +356,10 @@ function App() {
                       onChange={(e) => setHeaderRow(Math.max(1, Math.min(previewState.rows.length, parseInt(e.target.value) || 1)))}
                       className="input"
                     />
-                    <p className="text-xs text-[#4C566A] mt-1">当前选中第 {headerRow} 行作为列名</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>当前选中第 {headerRow} 行作为列名</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#3B4252] mb-2">数据开始行</label>
+                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>数据开始行</label>
                     <input
                       type="number"
                       min="1"
@@ -347,7 +367,7 @@ function App() {
                       onChange={(e) => setDataStartRow(Math.max(1, parseInt(e.target.value) || 1))}
                       className="input"
                     />
-                    <p className="text-xs text-[#4C566A] mt-1">从第 {dataStartRow} 行开始读取数据</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>从第 {dataStartRow} 行开始读取数据</p>
                   </div>
                   <div className="md:col-span-2 flex items-end">
                     <button
@@ -370,46 +390,58 @@ function App() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto border border-[#D8DEE9] rounded-xl">
-                  <table className="min-w-full divide-y divide-[#D8DEE9]">
+                <div className="overflow-x-auto border rounded-xl" style={{ borderColor: 'var(--color-border)' }}>
+                  <table className="min-w-full" style={{ borderColor: 'var(--color-border-light)' }}>
                     <thead>
-                      <tr className="bg-[#E5E9F0]">
-                        <th className="px-3 py-2 text-left text-xs font-medium text-[#4C566A] uppercase tracking-wider bg-[#E5E9F0] sticky left-0">
+                      <tr style={{ backgroundColor: 'var(--color-surface-hover)' }}>
+                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider sticky left-0" style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}>
                           行号
                         </th>
                         {previewState.rows[0]?.map((_: any, colIndex: number) => (
-                          <th key={colIndex} className="px-3 py-2 text-left text-xs font-medium text-[#4C566A] uppercase tracking-wider">
+                          <th key={colIndex} className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
                             列 {colIndex + 1}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-[#D8DEE9]">
+                    <tbody style={{ backgroundColor: 'var(--color-background)' }}>
                       {previewState.rows.map((row, rowIndex) => (
                         <tr 
                           key={rowIndex} 
-                          className={`${
-                            rowIndex === headerRow - 1 
-                              ? 'bg-[#D8DEE9] border-2 border-[#5E81AC]' 
+                          className="transition-colors"
+                          style={{ 
+                            backgroundColor: rowIndex === headerRow - 1 
+                              ? 'var(--color-surface-hover)' 
                               : rowIndex >= dataStartRow - 1 
-                                ? 'bg-[#ECEFF4]' 
-                                : ''
-                          } hover:bg-[#E5E9F0] transition-colors`}
+                                ? 'var(--color-surface)' 
+                                : 'var(--color-background)',
+                            borderTop: rowIndex === headerRow - 1 ? '2px solid var(--color-primary)' : '1px solid var(--color-border-light)'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)'; }}
+                          onMouseLeave={(e) => {
+                            if (rowIndex === headerRow - 1) {
+                              e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
+                            } else if (rowIndex >= dataStartRow - 1) {
+                              e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                            } else {
+                              e.currentTarget.style.backgroundColor = 'var(--color-background)';
+                            }
+                          }}
                         >
-                          <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-[#2E3440] bg-[#E5E9F0] sticky left-0">
+                          <td className="px-3 py-2 whitespace-nowrap text-sm font-medium sticky left-0" style={{ color: 'var(--color-text)', backgroundColor: 'var(--color-surface-hover)' }}>
                             <div className="flex items-center space-x-2">
                               <span>{rowIndex + 1}</span>
                               {rowIndex === headerRow - 1 && (
-                                <span className="px-2 py-0.5 text-xs bg-[#5E81AC] text-white rounded-full">列名</span>
+                                <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}>列名</span>
                               )}
                               {rowIndex >= dataStartRow - 1 && rowIndex !== headerRow - 1 && (
-                                <span className="px-2 py-0.5 text-xs bg-[#A3BE8C] text-white rounded-full">数据</span>
+                                <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'var(--color-success)', color: '#fff' }}>数据</span>
                               )}
                             </div>
                           </td>
                           {row.map((cell: any, cellIndex: number) => (
-                            <td key={cellIndex} className="px-3 py-2 whitespace-nowrap text-sm text-[#3B4252]">
-                              {cell !== null && cell !== undefined ? String(cell).slice(0, 50) : <span className="text-[#D8DEE9]">空</span>}
+                            <td key={cellIndex} className="px-3 py-2 whitespace-nowrap text-sm" style={{ color: 'var(--color-text)' }}>
+                              {cell !== null && cell !== undefined ? String(cell).slice(0, 50) : <span style={{ color: 'var(--color-text-tertiary)' }}>空</span>}
                             </td>
                           ))}
                         </tr>
@@ -418,13 +450,13 @@ function App() {
                   </table>
                 </div>
 
-                <div className="mt-4 flex items-center space-x-4 text-sm text-[#4C566A]">
+                <div className="mt-4 flex items-center space-x-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                   <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-[#D8DEE9] border-2 border-[#5E81AC] rounded"></div>
+                    <div className="w-4 h-4 rounded border-2" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-primary)' }}></div>
                     <span>列名行</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-[#ECEFF4] border border-[#A3BE8C] rounded"></div>
+                    <div className="w-4 h-4 rounded border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-success)' }}></div>
                     <span>数据行</span>
                   </div>
                 </div>
@@ -433,12 +465,15 @@ function App() {
               <>
                 <div className="card p-8">
                   <div className="flex items-center space-x-4 mb-6">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-[#5E81AC] to-[#81A1C1] shadow-lg shadow-[#5E81AC]/20">
+                    <div 
+                      className="p-3 rounded-xl"
+                      style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-lg)' }}
+                    >
                       <FileSpreadsheet className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-[#2E3440]">上传数据文件</h2>
-                      <p className="text-[#4C566A]">支持 CSV、Excel 格式，快速开始可视化</p>
+                      <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>上传数据文件</h2>
+                      <p style={{ color: 'var(--color-text-secondary)' }}>支持 CSV、Excel 格式，快速开始可视化</p>
                     </div>
                   </div>
                   <FileUpload onFileSelect={handleFileSelect} />
@@ -448,26 +483,26 @@ function App() {
                   <div className="card p-12">
                     <div className="flex flex-col items-center justify-center space-y-4">
                       <div className="relative">
-                        <div className="w-16 h-16 border-4 border-[#D8DEE9] border-t-[#5E81AC] rounded-full animate-spin" />
-                        <Sparkles className="w-6 h-6 text-[#5E81AC] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                        <div className="w-16 h-16 border-4 rounded-full animate-spin" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-primary)' }} />
+                        <Sparkles className="w-6 h-6 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" style={{ color: 'var(--color-primary)' }} />
                       </div>
-                      <p className="text-[#3B4252] font-medium">正在预览文件...</p>
-                      <p className="text-sm text-[#4C566A]">大文件可能需要较长时间</p>
+                      <p className="font-medium" style={{ color: 'var(--color-text)' }}>正在预览文件...</p>
+                      <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>大文件可能需要较长时间</p>
                     </div>
                   </div>
                 )}
 
                 {error && (
-                  <div className="card p-6 border-2 border-[#BF616A] bg-[#EBCB8B]/20">
+                  <div className="card p-6 border-2" style={{ borderColor: 'var(--color-error)', backgroundColor: 'rgba(var(--color-warning-rgb, 235, 203, 139), 0.2)' }}>
                     <div className="flex items-start space-x-3">
-                      <div className="p-2 rounded-lg bg-[#BF616A]/20">
-                        <svg className="w-5 h-5 text-[#BF616A]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgba(var(--color-error-rgb, 191, 97, 106), 0.2)' }}>
+                        <svg className="w-5 h-5" style={{ color: 'var(--color-error)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-[#BF616A]">解析错误</h3>
-                        <p className="text-sm text-[#D08770] mt-1">{error}</p>
+                        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>解析错误</h3>
+                        <p className="text-sm mt-1" style={{ color: 'var(--color-warning)' }}>{error}</p>
                       </div>
                     </div>
                   </div>
@@ -475,18 +510,21 @@ function App() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
-                    { icon: '📤', title: '上传文件', desc: '支持 CSV、Excel 格式，最大 100MB', gradient: 'from-[#5E81AC] to-[#81A1C1]', shadow: 'shadow-[#5E81AC]/20' },
-                    { icon: '📊', title: '处理数据', desc: '筛选、清洗、转换数据', gradient: 'from-[#81A1C1] to-[#88C0D0]', shadow: 'shadow-[#81A1C1]/20' },
-                    { icon: '✨', title: '生成图表', desc: '自定义样式，导出结果', gradient: 'from-[#88C0D0] to-[#8FBCBB]', shadow: 'shadow-[#88C0D0]/20' },
+                    { icon: '📤', title: '上传文件', desc: '支持 CSV、Excel 格式，最大 100MB' },
+                    { icon: '📊', title: '处理数据', desc: '筛选、清洗、转换数据' },
+                    { icon: '✨', title: '生成图表', desc: '自定义样式，导出结果' },
                   ].map((item, i) => (
                     <div key={i} className="card p-6 group cursor-pointer">
                       <div className="flex items-center space-x-4 mb-4">
-                        <div className={`p-4 rounded-2xl bg-gradient-to-br ${item.gradient} ${item.shadow} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                        <div 
+                          className="p-4 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-300"
+                          style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-lg)' }}
+                        >
                           <span className="text-2xl">{item.icon}</span>
                         </div>
-                        <h3 className="text-lg font-semibold text-[#2E3440]">{item.title}</h3>
+                        <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>{item.title}</h3>
                       </div>
-                      <p className="text-[#4C566A]">{item.desc}</p>
+                      <p style={{ color: 'var(--color-text-secondary)' }}>{item.desc}</p>
                     </div>
                   ))}
                 </div>
@@ -498,39 +536,42 @@ function App() {
             <div className="card overflow-hidden">
               <button
                 onClick={() => setIsDataExpanded(!isDataExpanded)}
-                className="w-full px-4 py-3 bg-gradient-to-r from-[#ECEFF4] to-[#E5E9F0] border-b border-[#D8DEE9] flex items-center justify-between hover:from-[#E5E9F0] hover:to-[#D8DEE9] transition-colors"
+                className="w-full px-4 py-3 border-b flex items-center justify-between transition-colors"
+                style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)'}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-[#81A1C1]/20">
-                    <Zap className="w-4 h-4 text-[#5E81AC]" />
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgba(var(--color-accent-rgb, 129, 161, 193), 0.2)' }}>
+                    <Zap className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                   </div>
                   <div className="text-left">
-                    <h3 className="text-sm font-semibold text-[#2E3440]">数据状态与预览</h3>
-                    <p className="text-xs text-[#4C566A]">
+                    <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>数据状态与预览</h3>
+                    <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                       原始: <span className="font-bold">{parsedData.data.length.toLocaleString()}</span> 行 → 
-                      筛选: <span className="font-bold text-[#A3BE8C]">{filteredData?.length.toLocaleString() || 0}</span> → 
-                      清洗: <span className="font-bold text-[#81A1C1]">{cleanedData?.length.toLocaleString() || (filteredData?.length.toLocaleString() || 0)}</span>
+                      筛选: <span className="font-bold" style={{ color: 'var(--color-success)' }}>{filteredData?.length.toLocaleString() || 0}</span> → 
+                      清洗: <span className="font-bold" style={{ color: 'var(--color-accent)' }}>{cleanedData?.length.toLocaleString() || (filteredData?.length.toLocaleString() || 0)}</span>
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-3 text-xs text-[#4C566A]">
+                  <div className="flex items-center space-x-3 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                     <span>列: {parsedData.headers.length}</span>
                     <span>数值列: {numericColumns.length}</span>
                   </div>
-                  {isDataExpanded ? <ChevronUp className="w-5 h-5 text-[#4C566A]" /> : <ChevronDown className="w-5 h-5 text-[#4C566A]" />}
+                  {isDataExpanded ? <ChevronUp className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} /> : <ChevronDown className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />}
                 </div>
               </button>
-              
+
               {isDataExpanded && (
                 <div className="p-4 space-y-4">
                   <div className="card p-3">
                     <FileUpload onFileSelect={handleFileSelect} />
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
-                    <Table2 className="w-4 h-4 text-[#4C566A]" />
-                    <h3 className="text-sm font-semibold text-[#2E3440]">数据预览</h3>
+                    <Table2 className="w-4 h-4" style={{ color: 'var(--color-text-secondary)' }} />
+                    <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>数据预览</h3>
                   </div>
                   <DataPreview
                     data={{ ...parsedData, data: workingData.slice(0, 50) as any, totalCount: workingData.length }}
@@ -545,28 +586,42 @@ function App() {
             <div className="card overflow-hidden">
               <button
                 onClick={() => setIsDataProcessExpanded(!isDataProcessExpanded)}
-                className="w-full px-6 py-4 bg-gradient-to-r from-[#E5E9F0] to-[#ECEFF4] border-b border-[#D8DEE9] flex items-center justify-between hover:from-[#D8DEE9] hover:to-[#E5E9F0] transition-colors"
+                className="w-full px-6 py-4 border-b flex items-center justify-between transition-colors"
+                style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)'}
               >
                 <div className="flex items-center space-x-2">
-                  <Database className="w-5 h-5 text-[#5E81AC]" />
-                  <h2 className="text-lg font-semibold text-[#2E3440]">数据处理模块</h2>
+                  <Database className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+                  <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>数据处理模块</h2>
                 </div>
-                {isDataProcessExpanded ? <ChevronUp className="w-5 h-5 text-[#4C566A]" /> : <ChevronDown className="w-5 h-5 text-[#4C566A]" />}
+                {isDataProcessExpanded ? <ChevronUp className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} /> : <ChevronDown className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />}
               </button>
-              
+
               {isDataProcessExpanded && (
                 <>
-                  <div className="border-b border-[#D8DEE9]">
+                  <div className="border-b" style={{ borderColor: 'var(--color-border)' }}>
                     <div className="flex overflow-x-auto">
                       {dataTabs.map((tab) => (
                         <button
                           key={tab.id}
                           onClick={() => setActiveDataTab(tab.id)}
-                          className={`flex items-center space-x-2 px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                            activeDataTab === tab.id
-                              ? 'text-[#5E81AC] border-[#5E81AC] bg-[#ECEFF4]'
-                              : 'text-[#4C566A] border-transparent hover:text-[#2E3440] hover:bg-[#E5E9F0]'
-                          }`}
+                          className="flex items-center space-x-2 px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2"
+                          style={{
+                            color: activeDataTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                            borderColor: activeDataTab === tab.id ? 'var(--color-primary)' : 'transparent',
+                            backgroundColor: activeDataTab === tab.id ? 'var(--color-surface)' : 'transparent'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (activeDataTab !== tab.id) {
+                              e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (activeDataTab !== tab.id) {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }
+                          }}
                         >
                           {tab.icon}
                           <span>{tab.label}</span>
@@ -594,13 +649,13 @@ function App() {
 
                     {activeDataTab === 'settings' && (
                       <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-[#2E3440] flex items-center space-x-2">
-                          <span className="w-3 h-3 rounded-full bg-[#5E81AC]" />
+                        <h3 className="text-lg font-semibold flex items-center space-x-2" style={{ color: 'var(--color-text)' }}>
+                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }} />
                           <span>文件解析设置</span>
                         </h3>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-[#3B4252] mb-2">列名所在行</label>
+                            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>列名所在行</label>
                             <input
                               type="number"
                               min="1"
@@ -610,7 +665,7 @@ function App() {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-[#3B4252] mb-2">数据开始行</label>
+                            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>数据开始行</label>
                             <input
                               type="number"
                               min="1"
@@ -620,7 +675,7 @@ function App() {
                             />
                           </div>
                         </div>
-                        <p className="text-xs text-[#4C566A]">修改后请重新上传文件</p>
+                        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>修改后请重新上传文件</p>
                       </div>
                     )}
                   </div>
@@ -629,23 +684,23 @@ function App() {
             </div>
 
             <div className="card overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-[#ECEFF4] to-[#E5E9F0] border-b border-[#D8DEE9]">
+              <div className="px-6 py-4 border-b" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
                 <div className="flex items-center space-x-2">
-                  <LineChart className="w-5 h-5 text-[#5E81AC]" />
-                  <h2 className="text-lg font-semibold text-[#2E3440]">图表模块</h2>
+                  <LineChart className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+                  <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>图表模块</h2>
                 </div>
               </div>
 
               <div className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gradient-to-r from-[#E5E9F0] to-[#ECEFF4] rounded-xl">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--color-surface-hover)' }}>
                       <div>
-                        <label className="block text-sm font-medium text-[#3B4252] mb-2">X轴（横轴）数据列</label>
+                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>X轴（横轴）数据列</label>
                         <select
                           value={xAxisColumn}
                           onChange={(e) => setXAxisColumn(e.target.value)}
-                          className="input select"
+                          className="input select w-full"
                         >
                           <option value="">请选择列</option>
                           {parsedData?.headers.map((header) => (
@@ -653,32 +708,20 @@ function App() {
                           ))}
                         </select>
                       </div>
-                      
+
                       <div>
-                        <label className="block text-sm font-medium text-[#3B4252] mb-2">Y轴（纵轴）数据列</label>
-                        <div className="bg-white border border-[#D8DEE9] rounded-xl p-2 max-h-32 overflow-y-auto space-y-1">
-                          {parsedData?.headers.map((header) => (
-                            <label key={header} className="flex items-center space-x-2 py-1 cursor-pointer hover:bg-[#ECEFF4] px-2 rounded-lg transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={yAxisColumns.includes(header)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setYAxisColumns([...yAxisColumns, header]);
-                                  } else {
-                                    setYAxisColumns(yAxisColumns.filter((col) => col !== header));
-                                  }
-                                }}
-                                className="w-4 h-4 rounded border-[#D8DEE9] text-[#5E81AC] focus:ring-[#5E81AC]"
-                              />
-                              <span className="text-sm text-[#3B4252]">{header}</span>
-                            </label>
-                          ))}
-                        </div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>Y轴（纵轴）数据列</label>
+                        <MultiSelect
+                          options={parsedData?.headers || []}
+                          selected={yAxisColumns}
+                          onChange={setYAxisColumns}
+                          placeholder="请选择列"
+                          className="w-full"
+                        />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-[#3B4252] mb-2">数据显示范围</label>
+                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>数据显示范围</label>
                         <div className="flex items-center space-x-2">
                           <input
                             type="number"
@@ -689,7 +732,7 @@ function App() {
                             className="input w-20"
                             placeholder="起始"
                           />
-                          <span className="text-[#4C566A]">-</span>
+                          <span style={{ color: 'var(--color-text-secondary)' }}>-</span>
                           <input
                             type="number"
                             min="1"
@@ -707,18 +750,24 @@ function App() {
                               setDisplayEndRow(workingData.length); 
                               setMaxDisplayRows(workingData.length);
                             }}
-                            className="text-xs text-[#5E81AC] hover:text-[#81A1C1]"
+                            className="text-xs"
+                            style={{ color: 'var(--color-primary)' }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-accent)'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
                           >
                             显示全部
                           </button>
-                          <span className="text-[#D8DEE9]">|</span>
+                          <span style={{ color: 'var(--color-border)' }}>|</span>
                           <button
                             onClick={() => { 
                               setDisplayStartRow(0); 
                               setDisplayEndRow(200); 
                               setMaxDisplayRows(200);
                             }}
-                            className="text-xs text-[#4C566A] hover:text-[#2E3440]"
+                            className="text-xs"
+                            style={{ color: 'var(--color-text-secondary)' }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-text)'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-secondary)'}
                           >
                             重置
                           </button>
@@ -727,26 +776,26 @@ function App() {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-[#2E3440] flex items-center space-x-2">
-                        <Sparkles className="w-5 h-5 text-[#5E81AC]" />
+                      <h3 className="text-lg font-semibold flex items-center space-x-2" style={{ color: 'var(--color-text)' }}>
+                        <Sparkles className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
                         <span>图表预览</span>
                       </h3>
                       {yAxisColumns.length > 0 && (
-                        <div className="flex items-center space-x-2 text-sm text-[#4C566A]">
+                        <div className="flex items-center space-x-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                           <span>Y轴: {yAxisColumns.length} 列</span>
-                          {xAxisColumn && <span className="text-[#5E81AC]">| X轴: {xAxisColumn}</span>}
+                          {xAxisColumn && <span style={{ color: 'var(--color-primary)' }}>| X轴: {xAxisColumn}</span>}
                         </div>
                       )}
                     </div>
 
                     {!xAxisColumn || yAxisColumns.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-80 text-[#4C566A]">
+                      <div className="flex flex-col items-center justify-center h-80" style={{ color: 'var(--color-text-secondary)' }}>
                         <BarChart2 className="w-16 h-16 mb-4 opacity-30" />
                         <p className="text-lg">请选择X轴和Y轴数据列</p>
                         <p className="text-sm mt-2 opacity-50">在上方设置中选择</p>
                       </div>
                     ) : chartData.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-80 text-[#4C566A]">
+                      <div className="flex flex-col items-center justify-center h-80" style={{ color: 'var(--color-text-secondary)' }}>
                         <p>暂无有效数据</p>
                       </div>
                     ) : (
@@ -764,8 +813,8 @@ function App() {
                         dataPointSize={chartConfig.dataPointSize}
                         opacity={chartConfig.opacity}
                         onChartTypeChange={handleChartTypeChange}
-                        xAxisLabel={chartConfig.xAxisLabel}
-                        yAxisLabel={chartConfig.yAxisLabel}
+                        xAxisLabel={!chartConfig.xAxisLabel || chartConfig.xAxisLabel === 'X轴' ? (xAxisColumn || 'X轴') : chartConfig.xAxisLabel}
+                        yAxisLabel={!chartConfig.yAxisLabel || chartConfig.yAxisLabel === 'Y轴' ? (yAxisColumns.length > 0 ? yAxisColumns.slice(0, 3).join(', ') + (yAxisColumns.length > 3 ? '...' : '') : 'Y轴') : chartConfig.yAxisLabel}
                         enableDualAxis={chartConfig.enableDualAxis}
                         dualAxisKeys={chartConfig.dualAxisKeys}
                       />
@@ -774,10 +823,10 @@ function App() {
 
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <Settings2 className="w-4 h-4 text-[#5E81AC]" />
-                      <h3 className="text-sm font-semibold text-[#2E3440]">图表配置</h3>
+                      <Settings2 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                      <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>图表配置</h3>
                     </div>
-                    <div className="p-3 bg-[#E5E9F0] rounded-xl border border-[#D8DEE9]">
+                    <div className="p-3 rounded-xl border" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
                       <ChartConfigPanel
                         config={chartConfig}
                         onConfigChange={setChartConfig}
@@ -793,19 +842,20 @@ function App() {
         )}
       </main>
 
-      <footer className="bg-[#ECEFF4]/90 backdrop-blur-xl border-t border-[#D8DEE9] mt-12 relative z-10">
+      <footer className="backdrop-blur-xl border-t mt-12 relative z-10" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-[#4C566A]">
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
               数据可视化应用 - 支持 CSV 和 Excel 文件
             </p>
-            <p className="text-sm text-[#4C566A]">
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
               Built with Shawnzhang
             </p>
           </div>
         </div>
       </footer>
     </div>
+    </ThemeProvider>
   );
 }
 

@@ -118,9 +118,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const getStatusIcon = () => {
     switch (uploadState.status) {
       case 'success':
-        return <CheckCircle className="w-5 h-5 text-[#A3BE8C]" />;
+        return <CheckCircle className="w-5 h-5" style={{ color: 'var(--color-success)' }} />;
       case 'error':
-        return <AlertCircle className="w-5 h-5 text-[#BF616A]" />;
+        return <AlertCircle className="w-5 h-5" style={{ color: 'var(--color-error)' }} />;
       default:
         return null;
     }
@@ -137,13 +137,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
   return (
     <div className={`relative ${className}`}>
       <div
-        className={`
-          relative rounded-2xl border-2 border-dashed transition-all duration-300 cursor-pointer
-          ${isDragging 
-            ? 'border-[#5E81AC] bg-[#ECEFF4] scale-[1.02]' 
-            : 'border-[#D8DEE9] bg-[#F5F7FA] hover:border-[#81A1C1] hover:bg-[#ECEFF4]'
-          }
-        `}
+        className="relative rounded-2xl border-2 border-dashed transition-all duration-300 cursor-pointer"
+        style={{
+          borderColor: isDragging ? 'var(--color-primary)' : 'var(--color-border)',
+          backgroundColor: isDragging ? 'var(--color-surface)' : 'var(--color-background)',
+          transform: isDragging ? 'scale(1.02)' : 'scale(1)'
+        }}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -151,52 +150,69 @@ const FileUpload: React.FC<FileUploadProps> = ({
         onClick={() => fileInputRef.current?.click()}
       >
         {isDragging && (
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#5E81AC]/10 to-[#81A1C1]/10 animate-pulse" />
+          <div 
+            className="absolute inset-0 rounded-2xl animate-pulse"
+            style={{ background: 'var(--gradient-primary)', opacity: 0.1 }}
+          />
         )}
         
         {uploadState.status === 'idle' ? (
           <div className="flex flex-col items-center justify-center py-10 px-4">
-            <div className={`
-              p-4 rounded-2xl mb-4 transition-all duration-300
-              ${isDragging 
-                ? 'bg-gradient-to-br from-[#5E81AC] to-[#81A1C1] shadow-lg shadow-[#5E81AC]/25' 
-                : 'bg-[#E5E9F0]'
-              }
-            `}>
-              <Upload className={`w-8 h-8 transition-colors ${isDragging ? 'text-white' : 'text-[#5E81AC]'}`} />
+            <div 
+              className="p-4 rounded-2xl mb-4 transition-all duration-300"
+              style={{
+                background: isDragging ? 'var(--gradient-primary)' : 'var(--color-surface-hover)',
+                boxShadow: isDragging ? 'var(--shadow-lg)' : 'none'
+              }}
+            >
+              <Upload 
+                className="w-8 h-8 transition-colors" 
+                style={{ color: isDragging ? '#fff' : 'var(--color-primary)' }}
+              />
             </div>
-            <p className="text-[#3B4252] font-medium mb-1">
+            <p className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>
               {isDragging ? '释放以上传文件' : '拖拽文件到此处'}
             </p>
-            <p className="text-[#4C566A] text-sm mb-4">或点击选择文件</p>
+            <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>或点击选择文件</p>
             <button
               type="button"
               className="btn btn-primary"
             >
               选择文件
             </button>
-            <p className="text-[#4C566A] text-xs mt-3">
+            <p className="text-xs mt-3" style={{ color: 'var(--color-text-secondary)' }}>
               支持 CSV、Excel 格式，最大 100MB
             </p>
           </div>
         ) : (
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center space-x-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-[#81A1C1] to-[#88C0D0] shadow-lg shadow-[#81A1C1]/20">
+              <div 
+                className="p-3 rounded-xl"
+                style={{ background: 'var(--gradient-primary)', boxShadow: 'var(--shadow-md)' }}
+              >
                 <FileSpreadsheet className="w-6 h-6 text-white" />
               </div>
               
               <div className="flex-1">
-                <p className="text-sm font-medium text-[#2E3440] truncate max-w-xs">
+                <p 
+                  className="text-sm font-medium truncate max-w-xs"
+                  style={{ color: 'var(--color-text)' }}
+                >
                   {uploadState.fileName}
                 </p>
                 <div className="flex items-center space-x-2 mt-1">
                   {getStatusIcon()}
-                  <p className={`text-sm ${
-                    uploadState.status === 'success' ? 'text-[#A3BE8C]' :
-                    uploadState.status === 'error' ? 'text-[#BF616A]' :
-                    'text-[#81A1C1]'
-                  }`}>
+                  <p 
+                    className="text-sm"
+                    style={{ 
+                      color: uploadState.status === 'success' 
+                        ? 'var(--color-success)' 
+                        : uploadState.status === 'error' 
+                          ? 'var(--color-error)' 
+                          : 'var(--color-primary)'
+                    }}
+                  >
                     {uploadState.message}
                   </p>
                 </div>
@@ -209,10 +225,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 e.stopPropagation();
                 handleReset();
               }}
-              className="p-2 hover:bg-[#E5E9F0] rounded-xl transition-colors duration-200"
+              className="p-2 rounded-xl transition-colors duration-200"
+              style={{ backgroundColor: 'transparent' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               title="重新上传"
             >
-              <X className="w-5 h-5 text-[#4C566A]" />
+              <X className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
             </button>
           </div>
         )}
@@ -227,12 +246,18 @@ const FileUpload: React.FC<FileUploadProps> = ({
       />
 
       {uploadState.status === 'error' && (
-        <div className="mt-3 p-4 rounded-xl bg-[#EBCB8B]/20 border border-[#BF616A]">
+        <div 
+          className="mt-3 p-4 rounded-xl border"
+          style={{ 
+            backgroundColor: 'rgba(var(--color-warning-rgb, 235, 203, 139), 0.2)',
+            borderColor: 'var(--color-error)'
+          }}
+        >
           <div className="flex items-start space-x-3">
-            <AlertCircle className="w-5 h-5 text-[#BF616A] flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--color-error)' }} />
             <div>
-              <p className="text-sm font-medium text-[#BF616A]">上传失败</p>
-              <p className="text-sm text-[#D08770] mt-1">{uploadState.message}</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--color-error)' }}>上传失败</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--color-warning)' }}>{uploadState.message}</p>
             </div>
           </div>
         </div>
