@@ -425,29 +425,78 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
                 清除预览
               </button>
             </div>
-            <div className="max-h-60 overflow-auto rounded-xl border" style={{ borderColor: 'var(--color-border)' }}>
-              <table className="min-w-full text-xs">
-                <thead className="sticky top-0" style={{ backgroundColor: 'var(--color-surface-hover)' }}>
-                  <tr>
-                    {columns.slice(0, 5).map((col) => (
-                      <th key={col} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-                        {col}
+            <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+              <div className="overflow-auto scrollbar-thin" style={{ maxHeight: '300px' }}>
+                <table className="w-full border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
+                      <th 
+                        className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider sticky left-0 z-20 w-12"
+                        style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
+                      >
+                        #
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
-                  {previewData.slice(0, 20).map((row, i) => (
-                    <tr key={i}>
-                      {columns.slice(0, 5).map((col) => (
-                        <td key={col} className="px-3 py-2" style={{ color: 'var(--color-text)' }}>
-                          {String(row[col] ?? '-')}
-                        </td>
+                      {columns.map((col) => (
+                        <th
+                          key={col}
+                          className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider"
+                          style={{
+                            color: col === selectedColumn ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                            backgroundColor: col === selectedColumn ? 'var(--color-surface)' : 'var(--color-surface-hover)',
+                            width: `${100 / columns.length}%`,
+                            maxWidth: '200px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                          title={col}
+                        >
+                          {col.length > 15 ? col.substring(0, 15) + '...' : col}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
+                    {previewData.slice(0, 50).map((row, rowIndex) => (
+                      <tr
+                        key={rowIndex}
+                        className="transition-colors"
+                        style={{ backgroundColor: rowIndex % 2 === 0 ? 'var(--color-background)' : 'var(--color-surface)' }}
+                      >
+                        <td 
+                          className="px-3 py-2 text-xs font-mono sticky left-0 z-10"
+                          style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
+                        >
+                          {rowIndex + 1}
+                        </td>
+                        {columns.map((col) => {
+                          const isSelected = col === selectedColumn;
+                          return (
+                            <td
+                              key={col}
+                              className="px-3 py-2 text-xs"
+                              style={{ backgroundColor: isSelected ? 'var(--color-surface)' : 'transparent' }}
+                            >
+                              <span
+                                className="block truncate"
+                                style={{
+                                  color: row[col] === null || row[col] === undefined 
+                                    ? 'var(--color-text-tertiary)' 
+                                    : 'var(--color-text)',
+                                  fontStyle: row[col] === null || row[col] === undefined ? 'italic' : 'normal'
+                                }}
+                                title={String(row[col] ?? '-')}
+                              >
+                                {String(row[col] ?? '-')}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
             <button onClick={handleApply} className="btn btn-primary w-full mt-3">
               应用清洗结果

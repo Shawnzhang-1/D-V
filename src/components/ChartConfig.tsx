@@ -363,13 +363,13 @@ const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
               className="w-4 h-4 rounded"
               style={{ borderColor: 'var(--color-border)', accentColor: 'var(--color-primary)' }}
             />
-            <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>启用双Y轴</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>启用多Y轴</span>
           </label>
-          <p className="text-xs mt-1 ml-6" style={{ color: 'var(--color-text-secondary)' }}>适用于数据范围差异较大的多列数据</p>
+          <p className="text-xs mt-1 ml-6" style={{ color: 'var(--color-text-secondary)' }}>选择多列数据分别显示在右侧坐标轴</p>
 
           {config.enableDualAxis && dataKeys.length > 1 && (
             <div className="mt-3 ml-6 p-3 rounded-lg border" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
-              <label className="block text-xs font-medium mb-2" style={{ color: 'var(--color-text-secondary)' }}>右侧Y轴数据列</label>
+              <label className="block text-xs font-medium mb-2" style={{ color: 'var(--color-text-secondary)' }}>右侧Y轴数据列（可多选，依次向右分布）</label>
               <div className="space-y-1 max-h-24 overflow-y-auto">
                 {dataKeys.map((key) => (
                   <label key={key} className="flex items-center space-x-2 cursor-pointer px-2 py-1 rounded transition-colors"

@@ -412,6 +412,13 @@ ${500 + imgData.length}
         )}
       </XAxis>
     );
+    const leftAxisKeys = dualAxisKeys.length > 0 
+      ? dataKeys.filter(key => !dualAxisKeys.includes(key))
+      : dataKeys;
+    const leftAxisLabel = leftAxisKeys.length > 0 
+      ? leftAxisKeys.slice(0, 3).join(', ') + (leftAxisKeys.length > 3 ? '...' : '')
+      : yAxisLabel;
+    
     const yAxisComponent = (
       <YAxis 
         yAxisId="left" 
@@ -421,9 +428,9 @@ ${500 + imgData.length}
         tickLine={{ stroke: theme.colors.border }} 
         width={55}
       >
-        {yAxisLabel && (
+        {leftAxisLabel && (
           <Label 
-            value={yAxisLabel}
+            value={leftAxisLabel}
             angle={-90}
             offset={1}
             position="insideLeft"
@@ -436,44 +443,77 @@ ${500 + imgData.length}
       </YAxis>
     );
     
-    const rightAxisLabel = dualAxisKeys.length > 0
-      ? dualAxisKeys.slice(0, 2).join(', ') + (dualAxisKeys.length > 2 ? '...' : '')
-      : (dataKeys.length > 1 ? dataKeys.slice(Math.ceil(dataKeys.length / 2)).slice(0, 2).join(', ') + (dataKeys.slice(Math.ceil(dataKeys.length / 2)).length > 2 ? '...' : '') : '');
-    
-    const yAxisRightComponent = enableDualAxis && (dualAxisKeys.length > 0 || dataKeys.length > 1) ? (
-      <YAxis 
-        yAxisId="right" 
-        orientation="right" 
-        domain={['auto', 'auto']} 
-        tick={{ fill: theme.colors.textSecondary, fontSize: 11 }} 
-        axisLine={{ stroke: theme.colors.border }} 
-        tickLine={{ stroke: theme.colors.border }} 
-        width={45}
-      >
-        {rightAxisLabel && (
-          <Label 
-            value={rightAxisLabel}
-            angle={90}
-            offset={10}
-            position="insideRight"
-            fill={theme.colors.text}
-            fontSize={11}
-            fontWeight={600}
-            style={{ textAnchor: 'middle' }}
-          />
-        )}
-      </YAxis>
-    ) : null;
+    const yAxisRightComponents: React.ReactNode[] = [];
+    if (enableDualAxis && dualAxisKeys.length > 0) {
+      dualAxisKeys.forEach((key, index) => {
+        const offset = 55 + (index * 50);
+        yAxisRightComponents.push(
+          <YAxis 
+            key={`right-${index}`}
+            yAxisId={`right-${index}`} 
+            orientation="right" 
+            domain={['auto', 'auto']} 
+            tick={{ fill: theme.colors.textSecondary, fontSize: 10 }} 
+            axisLine={{ stroke: theme.colors.border }} 
+            tickLine={{ stroke: theme.colors.border }} 
+            width={45}
+            offset={offset}
+          >
+            <Label 
+              value={key.length > 10 ? key.substring(0, 10) + '...' : key}
+              angle={90}
+              offset={10}
+              position="insideRight"
+              fill={theme.colors.text}
+              fontSize={10}
+              fontWeight={500}
+              style={{ textAnchor: 'middle' }}
+            />
+          </YAxis>
+        );
+      });
+    } else if (enableDualAxis && dataKeys.length > 1) {
+      const rightAxisLabel = dataKeys.slice(Math.ceil(dataKeys.length / 2)).slice(0, 3).join(', ') + (dataKeys.slice(Math.ceil(dataKeys.length / 2)).length > 3 ? '...' : '');
+      yAxisRightComponents.push(
+        <YAxis 
+          key="right-0"
+          yAxisId="right" 
+          orientation="right" 
+          domain={['auto', 'auto']} 
+          tick={{ fill: theme.colors.textSecondary, fontSize: 11 }} 
+          axisLine={{ stroke: theme.colors.border }} 
+          tickLine={{ stroke: theme.colors.border }} 
+          width={45}
+        >
+          {rightAxisLabel && (
+            <Label 
+              value={rightAxisLabel}
+              angle={90}
+              offset={10}
+              position="insideRight"
+              fill={theme.colors.text}
+              fontSize={11}
+              fontWeight={600}
+              style={{ textAnchor: 'middle' }}
+            />
+          )}
+        </YAxis>
+      );
+    }
     
     const brushComponent = <Brush dataKey={xKey} height={30} stroke={theme.colors.primary} fill={`${theme.colors.primary}14`} />;
     const dotSize = Math.max(2, Math.min(12, dataPointSize));
 
-    const isDualAxisKey = (key: string, index: number): boolean => {
-      if (!enableDualAxis) return false;
+    const getYAxisId = (key: string, index: number): string => {
+      if (!enableDualAxis) return 'left';
       if (dualAxisKeys.length > 0) {
-        return dualAxisKeys.includes(key);
+        const dualIndex = dualAxisKeys.indexOf(key);
+        if (dualIndex >= 0) {
+          return `right-${dualIndex}`;
+        }
+        return 'left';
       }
-      return index >= Math.ceil(dataKeys.length / 2);
+      return index >= Math.ceil(dataKeys.length / 2) ? 'right' : 'left';
     };
 
     switch (chartType) {
@@ -484,14 +524,14 @@ ${500 + imgData.length}
               {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.colors.borderLight} />}
               {xAxisComponent}
               {yAxisComponent}
-              {yAxisRightComponent}
+              {yAxisRightComponents}
               <Tooltip content={<CustomTooltip colorMap={colorMap} />} />
               {brushComponent}
               {dataKeys.map((key, index) => {
                 if (hiddenSeries.includes(index)) return null;
                 const config = getSeriesConfig(key, index);
                 if (!config.visible) return null;
-                const yAxisId = isDualAxisKey(key, index) ? 'right' : 'left';
+                const yAxisId = getYAxisId(key, index);
                 return <Line key={key} yAxisId={yAxisId} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} strokeOpacity={opacity} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: dotSize, opacity } : false} activeDot={{ r: dotSize + 2, strokeWidth: 0, fill: config.color, opacity }} />;
               })}
             </LineChart>
@@ -504,14 +544,14 @@ ${500 + imgData.length}
               {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.colors.borderLight} />}
               {xAxisComponent}
               {yAxisComponent}
-              {yAxisRightComponent}
+              {yAxisRightComponents}
               <Tooltip content={<CustomTooltip colorMap={colorMap} />} />
               {brushComponent}
               {dataKeys.map((key, index) => {
                 if (hiddenSeries.includes(index)) return null;
                 const config = getSeriesConfig(key, index);
                 if (!config.visible) return null;
-                const yAxisId = isDualAxisKey(key, index) ? 'right' : 'left';
+                const yAxisId = getYAxisId(key, index);
                 return <Bar key={key} yAxisId={yAxisId} dataKey={key} name={key} fill={config.color} opacity={opacity} radius={[6, 6, 0, 0]} />;
               })}
             </BarChart>
@@ -524,14 +564,14 @@ ${500 + imgData.length}
               {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.colors.borderLight} />}
               {xAxisComponent}
               {yAxisComponent}
-              {yAxisRightComponent}
+              {yAxisRightComponents}
               <Tooltip content={<CustomTooltip colorMap={colorMap} />} />
               {brushComponent}
               {dataKeys.map((key, index) => {
                 if (hiddenSeries.includes(index)) return null;
                 const config = getSeriesConfig(key, index);
                 if (!config.visible) return null;
-                const yAxisId = isDualAxisKey(key, index) ? 'right' : 'left';
+                const yAxisId = getYAxisId(key, index);
                 return <Area key={key} yAxisId={yAxisId} type="monotone" dataKey={key} name={key} fill={config.color} stroke={config.color} fillOpacity={opacity * 0.5} />;
               })}
             </AreaChart>
@@ -544,14 +584,14 @@ ${500 + imgData.length}
               {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.colors.borderLight} />}
               {xAxisComponent}
               {yAxisComponent}
-              {yAxisRightComponent}
+              {yAxisRightComponents}
               <Tooltip content={<CustomTooltip colorMap={colorMap} />} />
               {brushComponent}
               {dataKeys.map((key, index) => {
                 if (hiddenSeries.includes(index)) return null;
                 const config = getSeriesConfig(key, index);
                 if (!config.visible) return null;
-                const yAxisId = isDualAxisKey(key, index) ? 'right' : 'left';
+                const yAxisId = getYAxisId(key, index);
                 return (
                   <Line 
                     key={key} 
@@ -576,14 +616,14 @@ ${500 + imgData.length}
               {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.colors.borderLight} />}
               {xAxisComponent}
               {yAxisComponent}
-              {yAxisRightComponent}
+              {yAxisRightComponents}
               <Tooltip content={<CustomTooltip colorMap={colorMap} />} />
               {brushComponent}
               {dataKeys.map((key, index) => {
                 if (hiddenSeries.includes(index)) return null;
                 const config = getSeriesConfig(key, index);
                 if (!config.visible) return null;
-                const yAxisId = isDualAxisKey(key, index) ? 'right' : 'left';
+                const yAxisId = getYAxisId(key, index);
                 switch (config.type) {
                   case 'bar': return <Bar key={key} yAxisId={yAxisId} dataKey={key} name={key} fill={config.color} opacity={opacity} radius={[6, 6, 0, 0]} />;
                   case 'scatter': return (
