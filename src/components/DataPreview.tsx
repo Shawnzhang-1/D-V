@@ -149,12 +149,12 @@ const DataPreview: React.FC<DataPreviewProps> = ({
         </div>
 
         <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
+          <div className="overflow-auto scrollbar-thin" style={{ maxHeight: '400px' }}>
+            <table className="w-full border-collapse">
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
                   <th 
-                    className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider sticky left-0 z-10 w-12"
+                    className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider sticky left-0 z-20 w-12"
                     style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
                   >
                     #
@@ -162,13 +162,19 @@ const DataPreview: React.FC<DataPreviewProps> = ({
                   {data.headers.map((header) => (
                     <th
                       key={header}
-                      className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap"
+                      className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider"
                       style={{
                         color: selectedColumns.includes(header) ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                        backgroundColor: selectedColumns.includes(header) ? 'var(--color-surface)' : 'var(--color-surface-hover)'
+                        backgroundColor: selectedColumns.includes(header) ? 'var(--color-surface)' : 'var(--color-surface-hover)',
+                        width: `${100 / data.headers.length}%`,
+                        maxWidth: '200px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
                       }}
+                      title={header}
                     >
-                      {header}
+                      {header.length > 15 ? header.substring(0, 15) + '...' : header}
                     </th>
                   ))}
                 </tr>
@@ -181,7 +187,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
                     style={{ backgroundColor: rowIndex % 2 === 0 ? 'var(--color-background)' : 'var(--color-surface)' }}
                   >
                     <td 
-                      className="px-3 py-2 text-xs font-mono sticky left-0"
+                      className="px-3 py-2 text-xs font-mono sticky left-0 z-10"
                       style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-surface-hover)' }}
                     >
                       {rowIndex + 1}
@@ -191,11 +197,11 @@ const DataPreview: React.FC<DataPreviewProps> = ({
                       return (
                         <td
                           key={header}
-                          className="px-3 py-2 text-xs whitespace-nowrap"
+                          className="px-3 py-2 text-xs"
                           style={{ backgroundColor: isSelected ? 'var(--color-surface)' : 'transparent' }}
                         >
                           <span
-                            className="block truncate max-w-[150px]"
+                            className="block truncate"
                             style={{
                               color: row[header] === null || row[header] === undefined 
                                 ? 'var(--color-text-tertiary)' 

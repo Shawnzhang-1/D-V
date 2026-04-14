@@ -808,6 +808,7 @@ function App() {
                         colors={chartColors}
                         seriesConfigs={chartConfig.seriesConfigs}
                         showGrid={chartConfig.showGrid}
+                        showLegend={chartConfig.showLegend}
                         showDataPoints={chartConfig.showDataPoints}
                         lineWidth={chartConfig.lineWidth}
                         dataPointSize={chartConfig.dataPointSize}

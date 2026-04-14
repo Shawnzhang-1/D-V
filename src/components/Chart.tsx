@@ -32,6 +32,7 @@ interface ChartProps {
   colors?: string[];
   seriesConfigs?: SeriesConfig[];
   showGrid?: boolean;
+  showLegend?: boolean;
   showDataPoints?: boolean;
   lineWidth?: number;
   dataPointSize?: number;
@@ -141,7 +142,7 @@ const ChartLegend = memo<{
 
 const Chart: React.FC<ChartProps> = ({
   data, xAxisKey, yAxisKeys, title, className = '', chartType: externalChartType = 'line',
-  colors, seriesConfigs = [], showGrid = true, showDataPoints = true,
+  colors, seriesConfigs = [], showGrid = true, showLegend = true, showDataPoints = true,
   lineWidth = 2, dataPointSize = 4, opacity = 0.8, onChartTypeChange, xAxisLabel = '', yAxisLabel = '',
   enableDualAxis = false, dualAxisKeys = [],
 }) => {
@@ -491,7 +492,7 @@ ${500 + imgData.length}
                 const config = getSeriesConfig(key, index);
                 if (!config.visible) return null;
                 const yAxisId = isDualAxisKey(key, index) ? 'right' : 'left';
-                return <Line key={key} yAxisId={yAxisId} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: dotSize } : false} activeDot={{ r: dotSize + 2, strokeWidth: 0, fill: config.color }} />;
+                return <Line key={key} yAxisId={yAxisId} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} strokeOpacity={opacity} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: dotSize, opacity } : false} activeDot={{ r: dotSize + 2, strokeWidth: 0, fill: config.color, opacity }} />;
               })}
             </LineChart>
           </ResponsiveContainer>
@@ -560,8 +561,8 @@ ${500 + imgData.length}
                     name={key}
                     stroke="transparent"
                     strokeWidth={0}
-                    dot={{ fill: config.color, r: dotSize }}
-                    activeDot={{ fill: config.color, r: dotSize + 3, strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ fill: config.color, r: dotSize, opacity }}
+                    activeDot={{ fill: config.color, r: dotSize + 3, strokeWidth: 2, stroke: '#fff', opacity }}
                   />
                 );
               })}
@@ -594,12 +595,12 @@ ${500 + imgData.length}
                       name={key}
                       stroke="transparent"
                       strokeWidth={0}
-                      dot={{ fill: config.color, r: dotSize }}
-                      activeDot={{ fill: config.color, r: dotSize + 3, strokeWidth: 2, stroke: '#fff' }}
+                      dot={{ fill: config.color, r: dotSize, opacity }}
+                      activeDot={{ fill: config.color, r: dotSize + 3, strokeWidth: 2, stroke: '#fff', opacity }}
                     />
                   );
                   case 'area': return <Area key={key} yAxisId={yAxisId} type="monotone" dataKey={key} name={key} fill={config.color} stroke={config.color} fillOpacity={opacity * 0.5} />;
-                  default: return <Line key={key} yAxisId={yAxisId} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: dotSize } : false} activeDot={{ r: dotSize + 2, strokeWidth: 0, fill: config.color }} />;
+                  default: return <Line key={key} yAxisId={yAxisId} type="monotone" dataKey={key} name={key} stroke={config.color} strokeWidth={lineWidth} strokeOpacity={opacity} dot={showDataPoints ? { fill: config.color, strokeWidth: 2, r: dotSize, opacity } : false} activeDot={{ r: dotSize + 2, strokeWidth: 0, fill: config.color, opacity }} />;
                 }
               })}
             </ComposedChart>
@@ -610,7 +611,7 @@ ${500 + imgData.length}
           <ResponsiveContainer width="100%" height={height}>
             <PieChart>
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={120} paddingAngle={2} dataKey="value" nameKey="name" label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={{ stroke: theme.colors.border, strokeWidth: 1 }}>
-                {pieData.map((entry, index) => <Cell key={index} fill={entry.color} stroke={theme.colors.surface} strokeWidth={2} />)}
+                {pieData.map((entry, index) => <Cell key={index} fill={entry.color} stroke={theme.colors.surface} strokeWidth={2} opacity={opacity} />)}
               </Pie>
               <Tooltip content={<CustomTooltip colorMap={colorMap} />} />
             </PieChart>
@@ -628,7 +629,7 @@ ${500 + imgData.length}
                 if (hiddenSeries.includes(index)) return null;
                 const config = getSeriesConfig(key, index);
                 if (!config.visible) return null;
-                return <Radar key={key} name={key} dataKey={key} stroke={config.color} fill={config.color} fillOpacity={opacity * 0.5} />;
+                return <Radar key={key} name={key} dataKey={key} stroke={config.color} fill={config.color} fillOpacity={opacity * 0.5} strokeOpacity={opacity} />;
               })}
             </RadarChart>
           </ResponsiveContainer>
@@ -665,7 +666,7 @@ ${500 + imgData.length}
           </div>
         </div>
         <div key={chartKey} style={{ width: '100%' }}>{renderMainChart()}</div>
-        {chartType !== 'pie' && <ChartLegend dataKeys={dataKeys} hiddenSeries={hiddenSeries} getSeriesConfig={getSeriesConfig} toggleSeries={toggleSeries} />}
+        {showLegend && chartType !== 'pie' && <ChartLegend dataKeys={dataKeys} hiddenSeries={hiddenSeries} getSeriesConfig={getSeriesConfig} toggleSeries={toggleSeries} />}
         <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
             <span>数据点: {data.length.toLocaleString()}{data.length > MAX_RENDER_POINTS && ` (显示 ${MAX_RENDER_POINTS.toLocaleString()} 个)`}</span>
@@ -728,7 +729,7 @@ ${500 + imgData.length}
                 ))}
               </div>
               <div key={chartKey} style={{ width: '100%' }}>{renderMainChart(500)}</div>
-              {chartType !== 'pie' && <ChartLegend dataKeys={dataKeys} hiddenSeries={hiddenSeries} getSeriesConfig={getSeriesConfig} toggleSeries={toggleSeries} />}
+              {showLegend && chartType !== 'pie' && <ChartLegend dataKeys={dataKeys} hiddenSeries={hiddenSeries} getSeriesConfig={getSeriesConfig} toggleSeries={toggleSeries} />}
               <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: 'var(--font-size-base)', color: 'var(--color-text-secondary)' }}>
                   <span>数据点: {data.length.toLocaleString()}</span>
