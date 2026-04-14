@@ -1,67 +1,66 @@
 @echo off
-chcp 65001 >nul
 echo ========================================
-echo    更新便携版
+echo    Update Portable Version
 echo ========================================
 echo.
 
 cd /d "%~dp0"
 
-echo [1/5] 检查环境...
+echo [1/5] Checking environment...
 if not exist "package.json" (
-    echo [错误] 未找到 package.json，请确保在正确的目录运行
+    echo [ERROR] package.json not found, please run in correct directory
     pause
     exit /b 1
 )
 
-echo [2/5] 构建最新版本...
+echo [2/5] Building latest version...
 call npm run build
 if %errorlevel% neq 0 (
-    echo [错误] 构建失败
+    echo [ERROR] Build failed
     pause
     exit /b 1
 )
-echo 构建完成！
+echo Build completed!
 echo.
 
 if not exist "dist" (
-    echo [错误] dist 目录不存在，构建可能失败
+    echo [ERROR] dist directory not found, build may have failed
     pause
     exit /b 1
 )
 
-echo [3/5] 清理旧文件...
+echo [3/5] Cleaning old files...
 if exist "..\data-viz-app-portable\assets" rmdir /s /q "..\data-viz-app-portable\assets"
 if exist "..\data-viz-app-portable\index.html" del /q "..\data-viz-app-portable\index.html"
-echo 清理完成！
+echo Cleanup completed!
 echo.
 
-echo [4/5] 复制新文件...
+echo [4/5] Copying new files...
 xcopy /e /i /y "dist\*" "..\data-viz-app-portable\"
 if %errorlevel% neq 0 (
-    echo [错误] 复制文件失败
+    echo [ERROR] Copy failed
     pause
     exit /b 1
 )
-echo 复制完成！
+echo Copy completed!
 echo.
 
-echo [5/5] 重新打包...
-if exist "..\数据可视化应用-便携版.zip" del /q "..\数据可视化应用-便携版.zip"
-powershell -Command "Compress-Archive -Path '..\data-viz-app-portable\*' -DestinationPath '..\数据可视化应用-便携版.zip' -Force"
+echo [5/5] Creating ZIP package...
+if exist "..\data-viz-app-portable.zip" del /q "..\data-viz-app-portable.zip"
+powershell -Command "Compress-Archive -Path '..\data-viz-app-portable\*' -DestinationPath '..\data-viz-app-portable.zip' -Force"
 if %errorlevel% neq 0 (
-    echo [警告] 打包失败，但便携版文件已更新
+    echo [WARNING] ZIP creation failed, but portable files have been updated
 ) else (
-    echo 打包完成！
+    echo ZIP created!
 )
 echo.
 
 echo ========================================
-echo    更新完成！
+echo    Update completed!
 echo ========================================
 echo.
-echo 便携版位置: %cd%\..\data-viz-app-portable\
-echo ZIP文件位置: %cd%\..\数据可视化应用-便携版.zip
+echo Portable version: %cd%\..\data-viz-app-portable\
+echo ZIP file: %cd%\..\data-viz-app-portable.zip
 echo.
 
 pause

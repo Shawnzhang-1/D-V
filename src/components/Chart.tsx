@@ -162,6 +162,10 @@ const Chart: React.FC<ChartProps> = ({
     setHiddenSeries([]);
   }, [enableDualAxis, dualAxisKeys]);
 
+  useEffect(() => {
+    setChartKey(prev => prev + 1);
+  }, [hiddenSeries]);
+
   const chartType = onChartTypeChange ? externalChartType : internalChartType;
   
   const setChartType = useCallback((type: ChartType) => {
