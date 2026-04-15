@@ -4,6 +4,8 @@ export type ConversionType = 'textToNumber' | 'numberToText' | 'toDate' | 'toTex
 
 export type NormalizeMethod = 'minMax' | 'zScore' | 'decimal' | 'log';
 
+export type SmoothMethod = 'movingAverage' | 'exponential' | 'doubleExponential' | 'tripleExponential' | 'dampedExponential' | 'gaussian' | 'savitzkyGolay';
+
 export interface FillNullOptions {
   method: FillMethod;
   customValue?: string | number;
@@ -18,6 +20,18 @@ export interface ConversionOptions {
 export interface NormalizeOptions {
   method: NormalizeMethod;
   targetRange?: { min: number; max: number };
+}
+
+export interface SmoothOptions {
+  method: SmoothMethod;
+  windowSize?: number;
+  alpha?: number;
+  beta?: number;
+  gamma?: number;
+  phi?: number;
+  sigma?: number;
+  polynomialOrder?: number;
+  outputColumn: string;
 }
 
 export interface CleaningOperation {
@@ -527,4 +541,492 @@ export function applyCleaningOperations(
     modifiedCells: totalModifiedCells,
     operations: operationLogs,
   };
+}
+
+export function smoothMovingAverage(
+  values: number[],
+  windowSize: number
+): number[] {
+  const result: number[] = [];
+  const halfWindow = Math.floor(windowSize / 2);
+
+  for (let i = 0; i < values.length; i++) {
+    let sum = 0;
+    let count = 0;
+
+    for (let j = Math.max(0, i - halfWindow); j <= Math.min(values.length - 1, i + halfWindow); j++) {
+      if (!isNaN(values[j])) {
+        sum += values[j];
+        count++;
+      }
+    }
+
+    result.push(count > 0 ? sum / count : NaN);
+  }
+
+  return result;
+}
+
+export function smoothExponential(
+  values: number[],
+  alpha: number
+): number[] {
+  const result: number[] = [];
+
+  if (values.length === 0) return result;
+
+  let ema: number | null = null;
+
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i];
+
+    if (isNaN(value)) {
+      result.push(ema !== null ? ema : NaN);
+      continue;
+    }
+
+    if (ema === null) {
+      ema = value;
+    } else {
+      ema = alpha * value + (1 - alpha) * ema;
+    }
+
+    result.push(ema);
+  }
+
+  return result;
+}
+
+export function smoothDoubleExponential(
+  values: number[],
+  alpha: number,
+  beta: number
+): number[] {
+  const result: number[] = [];
+
+  if (values.length === 0) return result;
+
+  let level: number | null = null;
+  let trend: number | null = null;
+
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i];
+
+    if (isNaN(value)) {
+      if (level !== null && trend !== null) {
+        result.push(level + trend);
+      } else {
+        result.push(NaN);
+      }
+      continue;
+    }
+
+    if (level === null) {
+      level = value;
+      trend = 0;
+    } else if (trend === null) {
+      trend = value - level;
+      level = alpha * value + (1 - alpha) * (level + trend);
+    } else {
+      const currentLevel: number = level;
+      const currentTrend: number = trend;
+      const newLevel: number = alpha * value + (1 - alpha) * (currentLevel + currentTrend);
+      const newTrend: number = beta * (newLevel - currentLevel) + (1 - beta) * currentTrend;
+      level = newLevel;
+      trend = newTrend;
+    }
+
+    if (level !== null && trend !== null) {
+      result.push(level + trend);
+    } else {
+      result.push(NaN);
+    }
+  }
+
+  return result;
+}
+
+export function smoothTripleExponential(
+  values: number[],
+  alpha: number,
+  beta: number,
+  gamma: number,
+  period: number = 4
+): number[] {
+  const result: number[] = [];
+
+  if (values.length === 0) return result;
+
+  const seasons: number[] = [];
+  let level: number | null = null;
+  let trend: number | null = null;
+
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i];
+
+    if (isNaN(value)) {
+      if (level !== null && trend !== null) {
+        const seasonIdx = i % period;
+        const seasonal = seasons[seasonIdx] !== undefined ? seasons[seasonIdx] : 0;
+        result.push(level + trend + seasonal);
+      } else {
+        result.push(NaN);
+      }
+      continue;
+    }
+
+    const seasonIdx = i % period;
+
+    if (i < period) {
+      seasons[seasonIdx] = value;
+      result.push(value);
+      continue;
+    }
+
+    if (level === null) {
+      const sum = seasons.reduce((a, b) => a + b, 0);
+      level = sum / period;
+      trend = 0;
+    }
+
+    if (trend === null) {
+      trend = 0;
+    }
+
+    const currentLevel: number = level;
+    const currentTrend: number = trend;
+    const seasonal = seasons[seasonIdx] !== undefined ? seasons[seasonIdx] : 0;
+    const newLevel: number = alpha * (value - seasonal) + (1 - alpha) * (currentLevel + currentTrend);
+    const newTrend: number = beta * (newLevel - currentLevel) + (1 - beta) * currentTrend;
+    const newSeasonal = gamma * (value - newLevel) + (1 - gamma) * seasonal;
+
+    level = newLevel;
+    trend = newTrend;
+    seasons[seasonIdx] = newSeasonal;
+
+    if (level !== null && trend !== null) {
+      result.push(level + trend + seasons[seasonIdx]);
+    } else {
+      result.push(NaN);
+    }
+  }
+
+  return result;
+}
+
+export function smoothDampedExponential(
+  values: number[],
+  alpha: number,
+  beta: number,
+  phi: number
+): number[] {
+  const result: number[] = [];
+
+  if (values.length === 0) return result;
+
+  if (phi <= 0 || phi >= 1) {
+    throw new Error('phi 参数必须在 0 和 1 之间');
+  }
+
+  let level: number | null = null;
+  let trend: number | null = null;
+
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i];
+
+    if (isNaN(value)) {
+      if (level !== null && trend !== null) {
+        const dampedTrend = trend * (phi / (1 - phi)) * (1 - Math.pow(phi, 1));
+        result.push(level + dampedTrend);
+      } else {
+        result.push(NaN);
+      }
+      continue;
+    }
+
+    if (level === null) {
+      level = value;
+      trend = 0;
+    } else if (trend === null) {
+      trend = value - level;
+      level = alpha * value + (1 - alpha) * (level + phi * trend);
+    } else {
+      const currentLevel: number = level;
+      const currentTrend: number = trend;
+      const newLevel: number = alpha * value + (1 - alpha) * (currentLevel + phi * currentTrend);
+      const newTrend: number = beta * (newLevel - currentLevel) + (1 - beta) * phi * currentTrend;
+      level = newLevel;
+      trend = newTrend;
+    }
+
+    if (level !== null && trend !== null) {
+      result.push(level + phi * trend);
+    } else {
+      result.push(NaN);
+    }
+  }
+
+  return result;
+}
+
+export function smoothGaussian(
+  values: number[],
+  sigma: number,
+  windowSize?: number
+): number[] {
+  const result: number[] = [];
+  const actualWindowSize = windowSize || Math.ceil(sigma * 6) | 1;
+  const halfWindow = Math.floor(actualWindowSize / 2);
+
+  const kernel: number[] = [];
+  let kernelSum = 0;
+
+  for (let i = -halfWindow; i <= halfWindow; i++) {
+    const weight = Math.exp(-(i * i) / (2 * sigma * sigma));
+    kernel.push(weight);
+    kernelSum += weight;
+  }
+
+  for (let i = 0; i < kernel.length; i++) {
+    kernel[i] /= kernelSum;
+  }
+
+  for (let i = 0; i < values.length; i++) {
+    let sum = 0;
+    let weightSum = 0;
+
+    for (let j = -halfWindow; j <= halfWindow; j++) {
+      const idx = i + j;
+      if (idx >= 0 && idx < values.length && !isNaN(values[idx])) {
+        sum += values[idx] * kernel[j + halfWindow];
+        weightSum += kernel[j + halfWindow];
+      }
+    }
+
+    result.push(weightSum > 0 ? sum / weightSum : NaN);
+  }
+
+  return result;
+}
+
+export function smoothSavitzkyGolay(
+  values: number[],
+  windowSize: number,
+  polynomialOrder: number
+): number[] {
+  const result: number[] = [];
+  const halfWindow = Math.floor(windowSize / 2);
+
+  if (windowSize % 2 === 0) {
+    throw new Error('窗口大小必须是奇数');
+  }
+
+  if (polynomialOrder >= windowSize) {
+    throw new Error('多项式阶数必须小于窗口大小');
+  }
+
+  const coefficients = computeSavitzkyGolayCoefficients(windowSize, polynomialOrder);
+
+  for (let i = 0; i < values.length; i++) {
+    let sum = 0;
+    let validCount = 0;
+
+    for (let j = -halfWindow; j <= halfWindow; j++) {
+      const idx = i + j;
+      if (idx >= 0 && idx < values.length && !isNaN(values[idx])) {
+        sum += values[idx] * coefficients[j + halfWindow];
+        validCount++;
+      }
+    }
+
+    result.push(validCount === windowSize ? sum : values[i]);
+  }
+
+  return result;
+}
+
+function computeSavitzkyGolayCoefficients(windowSize: number, polynomialOrder: number): number[] {
+  const halfWindow = Math.floor(windowSize / 2);
+  const coefficients: number[] = [];
+
+  const matrix: number[][] = [];
+  for (let i = -halfWindow; i <= halfWindow; i++) {
+    const row: number[] = [];
+    for (let j = 0; j <= polynomialOrder; j++) {
+      row.push(Math.pow(i, j));
+    }
+    matrix.push(row);
+  }
+
+  const ata: number[][] = [];
+  for (let i = 0; i <= polynomialOrder; i++) {
+    ata.push([]);
+    for (let j = 0; j <= polynomialOrder; j++) {
+      let sum = 0;
+      for (let k = 0; k < windowSize; k++) {
+        sum += matrix[k][i] * matrix[k][j];
+      }
+      ata[i].push(sum);
+    }
+  }
+
+  const ataInv = invertMatrix(ata);
+  if (!ataInv) {
+    return new Array(windowSize).fill(1 / windowSize);
+  }
+
+  for (let i = 0; i < windowSize; i++) {
+    let sum = 0;
+    for (let j = 0; j <= polynomialOrder; j++) {
+      sum += ataInv[0][j] * matrix[i][j];
+    }
+    coefficients.push(sum);
+  }
+
+  return coefficients;
+}
+
+function invertMatrix(matrix: number[][]): number[][] | null {
+  const n = matrix.length;
+  const augmented: number[][] = [];
+
+  for (let i = 0; i < n; i++) {
+    augmented.push([...matrix[i], ...new Array(n).fill(0)]);
+    augmented[i][n + i] = 1;
+  }
+
+  for (let i = 0; i < n; i++) {
+    let maxRow = i;
+    for (let k = i + 1; k < n; k++) {
+      if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+        maxRow = k;
+      }
+    }
+
+    [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+
+    if (Math.abs(augmented[i][i]) < 1e-10) {
+      return null;
+    }
+
+    const pivot = augmented[i][i];
+    for (let j = 0; j < 2 * n; j++) {
+      augmented[i][j] /= pivot;
+    }
+
+    for (let k = 0; k < n; k++) {
+      if (k !== i) {
+        const factor = augmented[k][i];
+        for (let j = 0; j < 2 * n; j++) {
+          augmented[k][j] -= factor * augmented[i][j];
+        }
+      }
+    }
+  }
+
+  const inverse: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    inverse.push(augmented[i].slice(n));
+  }
+
+  return inverse;
+}
+
+export function smoothColumn(
+  data: Record<string, any>[],
+  column: string,
+  options: SmoothOptions
+): { data: Record<string, any>[]; modifiedCount: number; outputColumn: string } {
+  const result = [...data];
+  const outputCol = options.outputColumn || `${column}_smoothed`;
+
+  const values = data.map(row => {
+    const val = row[column];
+    return typeof val === 'number' && !isNaN(val) ? val : NaN;
+  });
+
+  let smoothedValues: number[];
+
+  switch (options.method) {
+    case 'movingAverage':
+      const windowSize = options.windowSize || 3;
+      smoothedValues = smoothMovingAverage(values, windowSize);
+      break;
+
+    case 'exponential':
+      const alpha = options.alpha !== undefined ? options.alpha : 0.01;
+      smoothedValues = smoothExponential(values, alpha);
+      break;
+
+    case 'doubleExponential':
+      const deAlpha = options.alpha !== undefined ? options.alpha : 0.01;
+      const deBeta = options.beta !== undefined ? options.beta : 0.1;
+      smoothedValues = smoothDoubleExponential(values, deAlpha, deBeta);
+      break;
+
+    case 'tripleExponential':
+      const teAlpha = options.alpha !== undefined ? options.alpha : 0.01;
+      const teBeta = options.beta !== undefined ? options.beta : 0.1;
+      const teGamma = options.gamma !== undefined ? options.gamma : 0.1;
+      const period = options.windowSize || 2;
+      smoothedValues = smoothTripleExponential(values, teAlpha, teBeta, teGamma, period);
+      break;
+
+    case 'dampedExponential':
+      const dampAlpha = options.alpha !== undefined ? options.alpha : 0.01;
+      const dampBeta = options.beta !== undefined ? options.beta : 0.1;
+      const phi = options.phi !== undefined ? options.phi : 0.9;
+      smoothedValues = smoothDampedExponential(values, dampAlpha, dampBeta, phi);
+      break;
+
+    case 'gaussian':
+      const sigma = options.sigma || 1.0;
+      smoothedValues = smoothGaussian(values, sigma, options.windowSize);
+      break;
+
+    case 'savitzkyGolay':
+      const sgWindow = options.windowSize || 3;
+      const polyOrder = options.polynomialOrder || 2;
+      smoothedValues = smoothSavitzkyGolay(values, sgWindow, polyOrder);
+      break;
+
+    default:
+      smoothedValues = values;
+  }
+
+  let modifiedCount = 0;
+  for (let i = 0; i < result.length; i++) {
+    const smoothedVal = smoothedValues[i];
+    result[i] = {
+      ...result[i],
+      [outputCol]: !isNaN(smoothedVal) ? Number(smoothedVal.toFixed(6)) : null
+    };
+    if (!isNaN(smoothedVal)) {
+      modifiedCount++;
+    }
+  }
+
+  return { data: result, modifiedCount, outputColumn: outputCol };
+}
+
+export function smoothMultipleColumns(
+  data: Record<string, any>[],
+  columns: string[],
+  options: SmoothOptions
+): { data: Record<string, any>[]; modifiedCounts: { column: string; count: number; outputColumn: string }[] } {
+  let result = [...data];
+  const modifiedCounts: { column: string; count: number; outputColumn: string }[] = [];
+
+  for (const column of columns) {
+    const outputCol = `${options.outputColumn}_${column}`;
+    const smoothResult = smoothColumn(result, column, { ...options, outputColumn: outputCol });
+    result = smoothResult.data;
+    modifiedCounts.push({
+      column,
+      count: smoothResult.modifiedCount,
+      outputColumn: smoothResult.outputColumn
+    });
+  }
+
+  return { data: result, modifiedCounts };
 }

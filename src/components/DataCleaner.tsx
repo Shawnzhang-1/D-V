@@ -4,9 +4,11 @@ import {
   FillMethod,
   ConversionType,
   NormalizeMethod,
+  SmoothMethod,
   FillNullOptions,
   ConversionOptions,
   NormalizeOptions,
+  SmoothOptions,
   getColumnStats,
   fillNullValues,
   removeNullRows,
@@ -15,13 +17,14 @@ import {
   detectOutliers,
   removeOutliers,
   normalizeColumn,
+  smoothColumn,
 } from '../utils/dataCleaner';
 
 interface DataCleanerProps {
   data: Record<string, any>[];
   columns: string[];
   onClean: (cleanedData: Record<string, any>[]) => void;
-  activeTab: 'fillNull' | 'convert' | 'deduplicate' | 'outliers' | 'normalize';
+  activeTab: 'fillNull' | 'convert' | 'deduplicate' | 'outliers' | 'normalize' | 'smooth';
   className?: string;
 }
 
@@ -50,6 +53,16 @@ const normalizeMethodOptions: { value: NormalizeMethod; label: string; descripti
   { value: 'log', label: '对数变换', description: '取自然对数（仅正数）' },
 ];
 
+const smoothMethodOptions: { value: SmoothMethod; label: string; description: string; hasCoefficient: boolean; coefficientLabel?: string; coefficients?: { name: string; label: string; min?: number; max?: number; step?: number; default: number }[] }[] = [
+  { value: 'movingAverage', label: '移动平均', description: '使用滑动窗口计算平均值', hasCoefficient: true, coefficientLabel: '窗口大小' },
+  { value: 'exponential', label: '一次指数平滑', description: '使用指数加权移动平均', hasCoefficient: true, coefficientLabel: '平滑系数 α (0-1)', coefficients: [{ name: 'alpha', label: '平滑系数 α', min: 0.01, max: 0.99, step: 0.01, default: 0.3 }] },
+  { value: 'doubleExponential', label: '二次指数平滑', description: 'Holt双参数指数平滑，适用于有趋势的数据', hasCoefficient: true, coefficientLabel: '平滑系数', coefficients: [{ name: 'alpha', label: '水平平滑系数 α', min: 0.01, max: 0.99, step: 0.01, default: 0.3 }, { name: 'beta', label: '趋势平滑系数 β', min: 0.01, max: 0.99, step: 0.01, default: 0.1 }] },
+  { value: 'tripleExponential', label: '三次指数平滑', description: 'Holt-Winters方法，适用于有趋势和季节性的数据', hasCoefficient: true, coefficientLabel: '平滑系数', coefficients: [{ name: 'alpha', label: '水平平滑系数 α', min: 0.01, max: 0.99, step: 0.01, default: 0.3 }, { name: 'beta', label: '趋势平滑系数 β', min: 0.01, max: 0.99, step: 0.01, default: 0.1 }, { name: 'gamma', label: '季节平滑系数 γ', min: 0.01, max: 0.99, step: 0.01, default: 0.1 }, { name: 'period', label: '季节周期', min: 2, step: 1, default: 4 }] },
+  { value: 'dampedExponential', label: '带阻尼趋势的指数平滑', description: '适用于趋势逐渐减弱的数据', hasCoefficient: true, coefficientLabel: '平滑系数', coefficients: [{ name: 'alpha', label: '水平平滑系数 α', min: 0.01, max: 0.99, step: 0.01, default: 0.3 }, { name: 'beta', label: '趋势平滑系数 β', min: 0.01, max: 0.99, step: 0.01, default: 0.1 }, { name: 'phi', label: '阻尼系数 φ (0-1)', min: 0.01, max: 0.99, step: 0.01, default: 0.9 }] },
+  { value: 'gaussian', label: '高斯平滑', description: '使用高斯核进行平滑', hasCoefficient: true, coefficientLabel: '标准差 (σ)' },
+  { value: 'savitzkyGolay', label: 'Savitzky-Golay', description: '多项式拟合平滑', hasCoefficient: true, coefficientLabel: '窗口大小 (奇数)' },
+];
+
 const DataCleaner: React.FC<DataCleanerProps> = ({
   data,
   columns,
@@ -63,6 +76,15 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
   const [conversionType, setConversionType] = useState<ConversionType>('textToNumber');
   const [outlierThreshold, setOutlierThreshold] = useState<number>(1.5);
   const [normalizeMethod, setNormalizeMethod] = useState<NormalizeMethod>('minMax');
+  const [smoothMethod, setSmoothMethod] = useState<SmoothMethod>('movingAverage');
+  const [smoothCoefficient, setSmoothCoefficient] = useState<number>(5);
+  const [smoothAlpha, setSmoothAlpha] = useState<number>(0.3);
+  const [smoothBeta, setSmoothBeta] = useState<number>(0.1);
+  const [smoothGamma, setSmoothGamma] = useState<number>(0.1);
+  const [smoothPhi, setSmoothPhi] = useState<number>(0.9);
+  const [smoothPeriod, setSmoothPeriod] = useState<number>(4);
+  const [smoothPolynomialOrder, setSmoothPolynomialOrder] = useState<number>(2);
+  const [smoothOutputColumnName, setSmoothOutputColumnName] = useState<string>('smoothed');
   const [previewData, setPreviewData] = useState<Record<string, any>[] | null>(null);
   const [fullProcessedData, setFullProcessedData] = useState<Record<string, any>[] | null>(null);
   const [operationResult, setOperationResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -94,7 +116,7 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
   const selectAllColumns = useCallback(() => {
     if (activeTab === 'fillNull' || activeTab === 'convert') {
       setSelectedColumns([...columns]);
-    } else if (activeTab === 'normalize' || activeTab === 'outliers') {
+    } else if (activeTab === 'normalize' || activeTab === 'outliers' || activeTab === 'smooth') {
       setSelectedColumns([...numericColumns]);
     }
   }, [columns, numericColumns, activeTab]);
@@ -226,6 +248,49 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
     setOperationResult({ type: 'success', message });
   }, [data, selectedColumns, normalizeMethod]);
 
+  const handleSmooth = useCallback(() => {
+    if (selectedColumns.length === 0) return;
+
+    let result = [...data];
+    const outputColumns: string[] = [];
+
+    for (const column of selectedColumns) {
+      const outputCol = `${smoothOutputColumnName}_${column}`;
+      const options: SmoothOptions = {
+        method: smoothMethod,
+        windowSize: smoothMethod === 'movingAverage' ? smoothCoefficient : smoothMethod === 'savitzkyGolay' ? smoothCoefficient : smoothMethod === 'tripleExponential' ? smoothPeriod : undefined,
+        alpha: ['exponential', 'doubleExponential', 'tripleExponential', 'dampedExponential'].includes(smoothMethod) ? smoothAlpha : undefined,
+        beta: ['doubleExponential', 'tripleExponential', 'dampedExponential'].includes(smoothMethod) ? smoothBeta : undefined,
+        gamma: smoothMethod === 'tripleExponential' ? smoothGamma : undefined,
+        phi: smoothMethod === 'dampedExponential' ? smoothPhi : undefined,
+        sigma: smoothMethod === 'gaussian' ? smoothCoefficient : undefined,
+        polynomialOrder: smoothMethod === 'savitzkyGolay' ? smoothPolynomialOrder : undefined,
+        outputColumn: outputCol,
+      };
+
+      const smoothResult = smoothColumn(result, column, options);
+      result = smoothResult.data;
+      outputColumns.push(outputCol);
+    }
+
+    setFullProcessedData(result);
+    setPreviewData(result.slice(0, 50));
+
+    const methodNames: Record<SmoothMethod, string> = {
+      movingAverage: '移动平均',
+      exponential: '一次指数平滑',
+      doubleExponential: '二次指数平滑',
+      tripleExponential: '三次指数平滑',
+      dampedExponential: '带阻尼趋势的指数平滑',
+      gaussian: '高斯平滑',
+      savitzkyGolay: 'Savitzky-Golay',
+    };
+
+    const message = `${methodNames[smoothMethod]}完成，已为 ${selectedColumns.length} 列生成平滑数据，新列: ${outputColumns.slice(0, 3).join(', ')}${outputColumns.length > 3 ? '...' : ''}`;
+
+    setOperationResult({ type: 'success', message });
+  }, [data, selectedColumns, smoothMethod, smoothCoefficient, smoothAlpha, smoothBeta, smoothGamma, smoothPhi, smoothPeriod, smoothPolynomialOrder, smoothOutputColumnName]);
+
   const handleApply = useCallback(() => {
     if (fullProcessedData) {
       onClean(fullProcessedData);
@@ -235,17 +300,17 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
     }
   }, [fullProcessedData, onClean]);
 
-  const availableColumns = activeTab === 'normalize' || activeTab === 'outliers' 
+  const availableColumns = activeTab === 'normalize' || activeTab === 'outliers' || activeTab === 'smooth' 
     ? numericColumns 
     : columns;
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {(activeTab === 'fillNull' || activeTab === 'convert' || activeTab === 'normalize' || activeTab === 'outliers') && (
+      {(activeTab === 'fillNull' || activeTab === 'convert' || activeTab === 'normalize' || activeTab === 'outliers' || activeTab === 'smooth') && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-              选择列 {activeTab === 'normalize' || activeTab === 'outliers' ? '(仅数值列)' : ''}
+              选择列 {activeTab === 'normalize' || activeTab === 'outliers' || activeTab === 'smooth' ? '(仅数值列)' : ''}
             </label>
             <div className="flex space-x-2">
               <button 
@@ -544,6 +609,314 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
         </div>
       )}
 
+      {activeTab === 'smooth' && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>平滑方法</label>
+            <div className="space-y-2">
+              {smoothMethodOptions.map((option) => (
+                <label 
+                  key={option.value} 
+                  className="flex items-start space-x-3 cursor-pointer p-3 rounded-xl border transition-colors"
+                  style={{
+                    backgroundColor: smoothMethod === option.value ? 'rgba(var(--color-primary-rgb, 94, 129, 172), 0.2)' : 'var(--color-surface-hover)',
+                    borderColor: smoothMethod === option.value ? 'var(--color-accent)' : 'var(--color-border)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (smoothMethod !== option.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (smoothMethod !== option.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-surface-hover)';
+                    }
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="smoothMethod"
+                    value={option.value}
+                    checked={smoothMethod === option.value}
+                    onChange={() => setSmoothMethod(option.value)}
+                    className="mt-1"
+                    style={{ accentColor: 'var(--color-primary)' }}
+                  />
+                  <div>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{option.label}</span>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{option.description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+              平滑参数
+            </label>
+            
+            {smoothMethod === 'movingAverage' && (
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>窗口大小</label>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={smoothCoefficient}
+                  onChange={(e) => setSmoothCoefficient(parseInt(e.target.value) || 5)}
+                  className="input"
+                />
+                <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                  窗口大小越大，平滑程度越高
+                </p>
+              </div>
+            )}
+
+            {smoothMethod === 'exponential' && (
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>平滑系数 α (0-1)</label>
+                <input
+                  type="number"
+                  min={0.01}
+                  max={0.99}
+                  step={0.01}
+                  value={smoothAlpha}
+                  onChange={(e) => setSmoothAlpha(parseFloat(e.target.value) || 0.3)}
+                  className="input"
+                />
+                <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                  系数越接近1，平滑程度越低（响应更快）
+                </p>
+              </div>
+            )}
+
+            {smoothMethod === 'doubleExponential' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>水平平滑系数 α (0-1)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={0.99}
+                    step={0.01}
+                    value={smoothAlpha}
+                    onChange={(e) => setSmoothAlpha(parseFloat(e.target.value) || 0.3)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>趋势平滑系数 β (0-1)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={0.99}
+                    step={0.01}
+                    value={smoothBeta}
+                    onChange={(e) => setSmoothBeta(parseFloat(e.target.value) || 0.1)}
+                    className="input"
+                  />
+                </div>
+                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  二次指数平滑适用于有趋势的数据
+                </p>
+              </div>
+            )}
+
+            {smoothMethod === 'tripleExponential' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>水平平滑系数 α (0-1)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={0.99}
+                    step={0.01}
+                    value={smoothAlpha}
+                    onChange={(e) => setSmoothAlpha(parseFloat(e.target.value) || 0.3)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>趋势平滑系数 β (0-1)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={0.99}
+                    step={0.01}
+                    value={smoothBeta}
+                    onChange={(e) => setSmoothBeta(parseFloat(e.target.value) || 0.1)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>季节平滑系数 γ (0-1)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={0.99}
+                    step={0.01}
+                    value={smoothGamma}
+                    onChange={(e) => setSmoothGamma(parseFloat(e.target.value) || 0.1)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>季节周期</label>
+                  <input
+                    type="number"
+                    min={2}
+                    step={1}
+                    value={smoothPeriod}
+                    onChange={(e) => setSmoothPeriod(parseInt(e.target.value) || 4)}
+                    className="input"
+                  />
+                </div>
+                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  Holt-Winters方法适用于有趋势和季节性的数据
+                </p>
+              </div>
+            )}
+
+            {smoothMethod === 'dampedExponential' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>水平平滑系数 α (0-1)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={0.99}
+                    step={0.01}
+                    value={smoothAlpha}
+                    onChange={(e) => setSmoothAlpha(parseFloat(e.target.value) || 0.3)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>趋势平滑系数 β (0-1)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={0.99}
+                    step={0.01}
+                    value={smoothBeta}
+                    onChange={(e) => setSmoothBeta(parseFloat(e.target.value) || 0.1)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>阻尼系数 φ (0-1)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={0.99}
+                    step={0.01}
+                    value={smoothPhi}
+                    onChange={(e) => setSmoothPhi(parseFloat(e.target.value) || 0.9)}
+                    className="input"
+                  />
+                </div>
+                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  阻尼系数越接近1，趋势衰减越慢；适用于趋势逐渐减弱的数据
+                </p>
+              </div>
+            )}
+
+            {smoothMethod === 'gaussian' && (
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>标准差 (σ)</label>
+                <input
+                  type="number"
+                  min={0.1}
+                  step={0.1}
+                  value={smoothCoefficient}
+                  onChange={(e) => setSmoothCoefficient(parseFloat(e.target.value) || 1)}
+                  className="input"
+                />
+                <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                  标准差越大，平滑范围越广
+                </p>
+              </div>
+            )}
+
+            {smoothMethod === 'savitzkyGolay' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>窗口大小 (奇数)</label>
+                  <input
+                    type="number"
+                    min={3}
+                    step={2}
+                    value={smoothCoefficient}
+                    onChange={(e) => setSmoothCoefficient(parseInt(e.target.value) || 5)}
+                    className="input"
+                  />
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                    窗口大小必须是奇数（如3, 5, 7...）
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>多项式阶数</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={smoothCoefficient - 1}
+                    value={smoothPolynomialOrder}
+                    onChange={(e) => setSmoothPolynomialOrder(parseInt(e.target.value) || 2)}
+                    className="input"
+                  />
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                    多项式阶数必须小于窗口大小
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+              新列名前缀
+            </label>
+            <input
+              type="text"
+              value={smoothOutputColumnName}
+              onChange={(e) => setSmoothOutputColumnName(e.target.value)}
+              placeholder="输入新列名前缀..."
+              className="input"
+            />
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              平滑后的数据将保存为新列，列名格式: {smoothOutputColumnName}_原列名
+            </p>
+          </div>
+
+          {columnStats && columnStats.min !== undefined && columnStats.max !== undefined && (
+            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface-hover)', borderColor: 'var(--color-border)' }}>
+              <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>当前列统计</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>最小值:</span>
+                  <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.min.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>最大值:</span>
+                  <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.max.toFixed(2)}</span>
+                </div>
+                {columnStats.mean !== undefined && (
+                  <div>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>均值:</span>
+                    <span className="ml-1 font-medium" style={{ color: 'var(--color-text)' }}>{columnStats.mean.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <button onClick={handleSmooth} className="btn btn-primary w-full" disabled={selectedColumns.length === 0 || !smoothOutputColumnName.trim()}>
+            预览平滑结果
+          </button>
+        </div>
+      )}
+
       {operationResult && (
         <div 
           className="p-4 rounded-xl flex items-center justify-between"
@@ -595,24 +968,33 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
                     >
                       #
                     </th>
-                    {columns.map((col) => (
-                      <th
-                        key={col}
-                        className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider"
-                        style={{
-                          color: selectedColumns.includes(col) ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                          backgroundColor: selectedColumns.includes(col) ? 'var(--color-surface)' : 'var(--color-surface-hover)',
-                          width: `${100 / columns.length}%`,
-                          maxWidth: '200px',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}
-                        title={col}
-                      >
-                        {col.length > 15 ? col.substring(0, 15) + '...' : col}
-                      </th>
-                    ))}
+                    {(() => {
+                      const allColumns = previewData.length > 0 ? Object.keys(previewData[0]) : columns;
+                      return allColumns.map((col) => {
+                        const isOriginalColumn = columns.includes(col);
+                        const isSelected = selectedColumns.includes(col);
+                        const isNewColumn = !isOriginalColumn;
+                        return (
+                          <th
+                            key={col}
+                            className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider"
+                            style={{
+                              color: isNewColumn ? 'var(--color-success)' : (isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)'),
+                              backgroundColor: isNewColumn ? 'rgba(var(--color-success-rgb, 163, 190, 140), 0.2)' : (isSelected ? 'var(--color-surface)' : 'var(--color-surface-hover)'),
+                              width: `${100 / allColumns.length}%`,
+                              maxWidth: '200px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                            title={col}
+                          >
+                            {col.length > 15 ? col.substring(0, 15) + '...' : col}
+                            {isNewColumn && <span className="ml-1 text-xs">(新)</span>}
+                          </th>
+                        );
+                      });
+                    })()}
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
@@ -628,29 +1010,34 @@ const DataCleaner: React.FC<DataCleanerProps> = ({
                       >
                         {rowIndex + 1}
                       </td>
-                      {columns.map((col) => {
-                        const isSelected = selectedColumns.includes(col);
-                        return (
-                          <td
-                            key={col}
-                            className="px-3 py-2 text-xs"
-                            style={{ backgroundColor: isSelected ? 'var(--color-surface)' : 'transparent' }}
-                          >
-                            <span
-                              className="block truncate"
-                              style={{
-                                color: row[col] === null || row[col] === undefined 
-                                  ? 'var(--color-text-tertiary)' 
-                                  : 'var(--color-text)',
-                                fontStyle: row[col] === null || row[col] === undefined ? 'italic' : 'normal'
-                              }}
-                              title={String(row[col] ?? '-')}
+                      {(() => {
+                        const allColumns = previewData.length > 0 ? Object.keys(previewData[0]) : columns;
+                        return allColumns.map((col) => {
+                          const isOriginalColumn = columns.includes(col);
+                          const isSelected = selectedColumns.includes(col);
+                          const isNewColumn = !isOriginalColumn;
+                          return (
+                            <td
+                              key={col}
+                              className="px-3 py-2 text-xs"
+                              style={{ backgroundColor: isNewColumn ? 'rgba(var(--color-success-rgb, 163, 190, 140), 0.1)' : (isSelected ? 'var(--color-surface)' : 'transparent') }}
                             >
-                              {String(row[col] ?? '-')}
-                            </span>
-                          </td>
-                        );
-                      })}
+                              <span
+                                className="block truncate"
+                                style={{
+                                  color: row[col] === null || row[col] === undefined 
+                                    ? 'var(--color-text-tertiary)' 
+                                    : (isNewColumn ? 'var(--color-success)' : 'var(--color-text)'),
+                                  fontStyle: row[col] === null || row[col] === undefined ? 'italic' : 'normal'
+                                }}
+                                title={String(row[col] ?? '-')}
+                              >
+                                {String(row[col] ?? '-')}
+                              </span>
+                            </td>
+                          );
+                        });
+                      })()}
                     </tr>
                   ))}
                 </tbody>

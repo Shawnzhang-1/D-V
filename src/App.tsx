@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Download, RefreshCw, FileSpreadsheet, BarChart2, Sparkles, Zap, FileImage, Image, FileText, Settings2, Filter, Eye, Check, Database, LineChart, Table2, ChevronDown, ChevronUp, Droplets, RefreshCw as Convert, Copy, AlertTriangle, Scale } from 'lucide-react';
+import { Download, RefreshCw, FileSpreadsheet, BarChart2, Sparkles, Zap, FileImage, Image, FileText, Settings2, Filter, Eye, Check, Database, LineChart, Table2, ChevronDown, ChevronUp, Droplets, RefreshCw as Convert, Copy, AlertTriangle, Scale, Waves } from 'lucide-react';
 import FileUpload from './components/FileUpload';
 import DataPreview from './components/DataPreview';
 import DataFilter from './components/DataFilter';
@@ -13,7 +13,7 @@ import { parseFile, previewFile, ParsedData, sampleDataByRange } from './utils/f
 import { analyzeAllColumns, ColumnMeta } from './utils/dataFilter';
 import { exportChartAsSvg, exportChartAsPng, exportChartAsPdf } from './utils/exportSvg';
 
-type ActiveDataTab = 'filter' | 'fillNull' | 'convert' | 'deduplicate' | 'outliers' | 'normalize' | 'settings';
+type ActiveDataTab = 'filter' | 'fillNull' | 'convert' | 'deduplicate' | 'outliers' | 'normalize' | 'smooth' | 'settings';
 
 interface PreviewState {
   rows: any[][];
@@ -131,6 +131,12 @@ function App() {
 
   const workingData = cleanedData || filteredData || parsedData?.data || [];
 
+  const allHeaders = useMemo(() => {
+    if (workingData.length === 0) return parsedData?.headers || [];
+    const headers = Object.keys(workingData[0]);
+    return headers;
+  }, [workingData, parsedData?.headers]);
+
   const chartData = useMemo(() => {
     if (!workingData || workingData.length === 0 || !xAxisColumn || yAxisColumns.length === 0) {
       return [];
@@ -170,24 +176,24 @@ function App() {
   }, [workingData, xAxisColumn, yAxisColumns, displayStartRow, displayEndRow, maxDisplayRows]);
 
   const numericColumns = useMemo(() => {
-    if (!parsedData) return [];
+    if (workingData.length === 0) return [];
     
-    return parsedData.headers.filter((header) => {
-      const values = parsedData.data.slice(0, 100).map((row) => row[header]);
+    return allHeaders.filter((header) => {
+      const values = workingData.slice(0, 100).map((row) => row[header]);
       const numericCount = values.filter(
         (v) => typeof v === 'number' || (!isNaN(parseFloat(String(v))) && v !== null && v !== '')
       ).length;
       return numericCount > values.length * 0.5;
     });
-  }, [parsedData]);
+  }, [workingData, allHeaders]);
 
   const handleExportData = useCallback(() => {
-    if (!workingData || workingData.length === 0 || !parsedData) return;
+    if (!workingData || workingData.length === 0) return;
 
     const csvContent = [
-      parsedData.headers.join(','),
+      allHeaders.join(','),
       ...workingData.map((row) =>
-        parsedData.headers.map((h) => {
+        allHeaders.map((h) => {
           const value = row[h];
           if (value === null || value === undefined) return '';
           if (typeof value === 'string' && value.includes(',')) {
@@ -204,7 +210,7 @@ function App() {
     link.download = 'exported_data.csv';
     link.click();
     URL.revokeObjectURL(link.href);
-  }, [workingData, parsedData]);
+  }, [workingData, allHeaders]);
 
   const handleReset = useCallback(() => {
     setParsedData(null);
@@ -240,6 +246,7 @@ function App() {
     { id: 'deduplicate', label: '数据去重', icon: <Copy className="w-4 h-4" /> },
     { id: 'outliers', label: '异常值', icon: <AlertTriangle className="w-4 h-4" /> },
     { id: 'normalize', label: '归一化', icon: <Scale className="w-4 h-4" /> },
+    { id: 'smooth', label: '数据平滑', icon: <Waves className="w-4 h-4" /> },
     { id: 'settings', label: '解析设置', icon: <Settings2 className="w-4 h-4" /> },
   ];
 
@@ -643,7 +650,7 @@ function App() {
                       />
                     )}
 
-                    {(activeDataTab === 'fillNull' || activeDataTab === 'convert' || activeDataTab === 'deduplicate' || activeDataTab === 'outliers' || activeDataTab === 'normalize') && (
+                    {(activeDataTab === 'fillNull' || activeDataTab === 'convert' || activeDataTab === 'deduplicate' || activeDataTab === 'outliers' || activeDataTab === 'normalize' || activeDataTab === 'smooth') && (
                       <DataCleaner
                         data={filteredData || parsedData.data}
                         columns={parsedData.headers}
@@ -708,7 +715,7 @@ function App() {
                           className="input select w-full"
                         >
                           <option value="">请选择列</option>
-                          {parsedData?.headers.map((header) => (
+                          {allHeaders.map((header) => (
                             <option key={header} value={header}>{header}</option>
                           ))}
                         </select>
@@ -717,7 +724,7 @@ function App() {
                       <div>
                         <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>Y轴（纵轴）数据列</label>
                         <MultiSelect
-                          options={parsedData?.headers || []}
+                          options={allHeaders}
                           selected={yAxisColumns}
                           onChange={setYAxisColumns}
                           placeholder="请选择列"
